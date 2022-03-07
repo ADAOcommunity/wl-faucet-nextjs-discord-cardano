@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useToast } from '../hooks/useToast';
 import { ClaimRes } from '../interfaces'
+import  Header from '../components/Header'
+import Head from 'next/head';
+import Image from 'next/image';
+
+
 
 interface Props {
   user: DiscordUser;
@@ -49,7 +54,7 @@ export default function Index(props: Props) {
     }).then(json => json)
     console.log(claimRes)
     console.log(claimRes)
-    if(claimRes.claim.whitelisted === true) {
+    if(claimRes.claim.whitelisted === false) {
       if(claimRes.claim.claimed === false) {
         toast('success', 'You have unclaimed tokens!')
         setCanClaim(true)
@@ -77,6 +82,17 @@ export default function Index(props: Props) {
 
   return (
     <>
+      <div className="layout font-primary">
+        <Head>
+          <title>Faucet for Cardano native assets</title>
+          <meta
+            name="description"
+            content="Faucet for Cardano native assets - by ADAO"
+          />
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
+        <Header />
+      <main className="flex flex-col justify-center items-center h-screen">
       <h1>
         Hey, {props.user.username}#{props.user.discriminator}
       </h1>
@@ -103,6 +119,39 @@ export default function Index(props: Props) {
         <h2>{claimStatus === '' ? "Nothing to claim right now 😿" : claimStatus}</h2>
       }
       {claimed ? <button onClick={checkClaimStatus}>Didn't receieve the last claim?</button> : <></>}
+      </main>
+      </div>
+      <footer className="flex flex-row justify-center items-center">
+        Powered by{``}
+        <span>
+          <a
+            href="https://cardano.org"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Image
+              src="/cardano-logo.svg"
+              alt="Cardano Logo"
+              width={24}
+              height={24}
+            />
+          </a>
+        </span>
+        <span>
+          <a
+            href="https://theadadao.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Image
+              src="/adao-full-logo.svg"
+              alt="Cardano Logo"
+              width={24}
+              height={24}
+            />
+          </a>
+        </span>
+      </footer>
     </>
   );
 }
