@@ -5,9 +5,8 @@ import dynamic from "next/dynamic";
 import { useToast } from '../hooks/useToast';
 import { ClaimRes } from '../interfaces'
 import  Header from '../components/Header'
+import Footer from '../components/Footer'
 import Head from 'next/head';
-import Image from 'next/image';
-
 
 
 interface Props {
@@ -84,12 +83,12 @@ export default function Index(props: Props) {
     <>
       <div className="layout font-primary">
         <Head>
-          <title>Faucet for Cardano native assets</title>
+          <title>Faucet for Cardano Native Assets</title>
           <meta
             name="description"
             content="Faucet for Cardano native assets - by ADAO"
           />
-          <link rel="icon" href="/favicon.ico" />
+          <link rel="icon" href="/ADAO - Full Logo - Blue Gradient.svg" />
         </Head>
         <Header />
       <main className="flex flex-col justify-center items-center h-screen">
@@ -121,37 +120,7 @@ export default function Index(props: Props) {
       {claimed ? <button onClick={checkClaimStatus}>Didn't receieve the last claim?</button> : <></>}
       </main>
       </div>
-      <footer className="flex flex-row justify-center items-center">
-        Powered by{``}
-        <span>
-          <a
-            href="https://cardano.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              src="/cardano-logo.svg"
-              alt="Cardano Logo"
-              width={24}
-              height={24}
-            />
-          </a>
-        </span>
-        <span>
-          <a
-            href="https://theadadao.com"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              src="/adao-full-logo.svg"
-              alt="Cardano Logo"
-              width={24}
-              height={24}
-            />
-          </a>
-        </span>
-      </footer>
+      <Footer />
     </>
   );
 }
