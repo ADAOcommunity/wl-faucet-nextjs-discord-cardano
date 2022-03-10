@@ -69,19 +69,14 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         let utxos = await wallet.getUtxosHex();
         console.log(utxos)
         const res = await fetch(`/api/utxos/available`).then(res => res.text())
-        console.log("da response")
-        console.log(res)
-        console.log("utxos")
-        console.log(utxos)
         utxos = utxos.concat(res)
-        console.log("utxos concat")
-        console.log(utxos)
+
         const myAddress = await wallet.getAddress();
         let netId = await wallet.getNetworkId();
         // const recipients = [{ "address": "addr_test1qp0eplnevhtnslafjnu2485qa35s88df7hw6u035wkax982r4edrmtyrjncfd6tluhtlhrlvqsjw3nuyegafvsmfgukqj55zet", "amount": "1" }]
         let recipients = [
-            {address: "addr1q95lhw09ljm0zyen8nuyw2ypgyss5gnxq5dczutne793qa8wch5z2p0luu3x04xj70ljrvts5k8v46lc3rmwjdtqjhpsg4xs6p", amount: "2.5"}, // Seller Wallet, NFT price 10ADA
-            {address: `${myAddress}`,  amount: "0",
+            {address: `${myAddress}`,  amount: "2.5",}, // Seller Wallet, NFT price 10ADA
+            {address: "addr_test1vrhk4njmxd7srxafdtqp3533q0xnceygzdp3qqdq62ajc6clg9x7s", amount: "0",
             //  assets:[{"unit":"bd0d0207adcebd72977271949c96bf78bd0ae7af448f0a1561998268.OG","quantity":"1"}]
             } // NFTs to be sent
         ]
@@ -95,7 +90,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
                 networkId: netId.id,
                 ttl: 18000
             })
-       
+         
             const signature = await wallet.signTx(t, true)
             const res = await fetch(`/api/submit/${t}/${signature}`).then(res => res.json())
 
@@ -104,7 +99,10 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             }
             // const res = 'res-temp'
             // const txhash = await wallet.submitTx({transactionRaw: t, witnesses: [signature], networkId: 1})
-            console.log(`${res}`)
+            const resTxId = res.txhash
+            toast('success', `Transaction ID ${resTxId}`)
+            return res
+
         }
         catch(err){
             console.log(err)
@@ -174,7 +172,8 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
                     </>
                     : 
                     <div>
-                        <button disabled={result} onClick={() => {makeTx(); setResult(true);}} className="m-2 p-10 text-black font-bold rounded-xl transition-all duration-500 bg-gradient-to-br to-blue-500 via-white from-blue-900 bg-size-200 bg-pos-0 hover:bg-pos-100">
+                        <button onClick={() => {result == true ? toast("error", "Accept the Terms of Service to Claim") : makeTx(); setResult(true)}}
+                            className="m-2 p-10 text-black font-bold rounded-xl transition-all duration-500 bg-gradient-to-br to-blue-500 via-white from-blue-900 bg-size-200 bg-pos-0 hover:bg-pos-100">
                         <h2>
                             Claim
                         </h2>

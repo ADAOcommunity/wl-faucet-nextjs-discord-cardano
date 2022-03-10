@@ -17,7 +17,7 @@ export default function Checkbox({checkboxData}) {
                     checked={isChecked}
                     onChange={() => checkboxData(checkHandler())}
                 />
-                <label htmlFor="checkbox">I agree to Terms of Service </label>
+                <label htmlFor="checkbox">I agree to the Terms of Service </label>
             </div>
         </section> 
     )
