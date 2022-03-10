@@ -81,7 +81,7 @@ export default function Index(props: Props) {
 
   return (
     <>
-      <div className="layout font-primary">
+      <div className="flex flex-col h-screen justify-between layout font-primary">
         <Head>
           <title>Faucet for Cardano Native Assets</title>
           <meta
@@ -91,36 +91,37 @@ export default function Index(props: Props) {
           <link rel="icon" href="/ADAO - Full Logo - Blue Gradient.svg" />
         </Head>
         <Header />
-      <main className="flex flex-col justify-center items-center h-screen">
-      <h1>
-        Hey, {props.user.username}#{props.user.discriminator}
-      </h1>
-        {/* <div className="flex items-center justify-center space-x-2">
-          <div className="spinner-border animate-spin inline-block w-4 h-4 border-1 rounded-full" role="status">
+        <main className="flex-grow justify-center items-center p-10">
+        <h1>
+          Hey, {props.user.username}#{props.user.discriminator}
+        </h1>
+          {/* <div className="flex items-center justify-center space-x-2">
+            <div className="spinner-border animate-spin inline-block w-4 h-4 border-1 rounded-full" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div> */}
+        {loading ?
+        <>
+        <div className="flex items-center justify-center space-x-2">
+          <div className="spinner-grow inline-block w-8 h-8 bg-current rounded-full opacity-0 text-blue-300" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
-        </div> */}
-      {loading ?
-      <>
-      <div className="flex items-center justify-center space-x-2">
-        <div className="spinner-grow inline-block w-8 h-8 bg-current rounded-full opacity-0 text-blue-300" role="status">
-          <span className="visually-hidden">Loading...</span>
         </div>
-      </div>
-      </>
-      : ''}
-      {canClaim ? 
-        <>
-          <h2>{claimStatus === '' ? "You have unclaimed tokens! ✨ 🎈" : claimStatus}</h2>
-          <WalletConnect successCallback={txSubmittedCallback}/>
         </>
-        : 
-        <h2>{claimStatus === '' ? "Nothing to claim right now 😿" : claimStatus}</h2>
-      }
-      {claimed ? <button onClick={checkClaimStatus}>Didn't receieve the last claim?</button> : <></>}
-      </main>
-      </div>
+        : ''}
+        {canClaim ? 
+          <>
+            <h2>{claimStatus === '' ? "You have unclaimed tokens! ✨ 🎈" : claimStatus}</h2>
+            <WalletConnect successCallback={txSubmittedCallback}/>
+          </>
+          : 
+          <h2>{claimStatus === '' ? "Nothing to claim right now 😿" : claimStatus}</h2>
+        }
+        {claimed ? <button onClick={checkClaimStatus}>Didn't receieve the last claim?</button> : <></>}
+        </main>
       <Footer />
+      </div>
+ 
     </>
   );
 }

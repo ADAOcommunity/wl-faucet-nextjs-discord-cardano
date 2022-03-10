@@ -2,11 +2,10 @@ import React from 'react'
 
 export default function Header() {
     return (
-        <section>
-            <header className='font-primary font-bold m-4 text-5xl'>Faucet for Cardano Native Assets</header>
-            <p>As a token of appreciation all early discord supporters of ADAO
-               are eligible to redeem our $ADAO governance token!     
+        <header className='font-primary font-bold m-4 text-5xl'>Faucet for Cardano Native Assets
+            <p className='m-4 text-sm'>As a token of appreciation all early discord supporters of ADAO
+            are eligible to redeem our $ADAO governance token!     
             </p>
-        </section> 
+        </header>
     )
 }
