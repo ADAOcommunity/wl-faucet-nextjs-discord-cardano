@@ -119,8 +119,9 @@ export default function Index(props: Props) {
         }
         {claimed ? <button onClick={checkClaimStatus}>Didn't receieve the last claim?</button> : <></>}
         </main>
-      <Footer />
+        <Footer />
       </div>
+   
  
     </>
   );
