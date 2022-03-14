@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { decode } from 'jsonwebtoken'
+import { decode, verify } from 'jsonwebtoken'
 
 import { CardanoWalletBackend } from '../../../../cardano/cardano-wallet-backend';
 import { addBusyUtxo, setUserClaimed } from "../../../../utils/db";
@@ -11,30 +11,31 @@ const blockfrostApiKey = {
 const beWalletAddr = process.env.WALLET_ADDRESS
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
-  const { tx = null, sig = null } = req.query;
+  const { tx = null, sig = null } = req.query
 
-  if (!tx || !sig) return res.status(400).json(`signed Tx not provided`);
+  if (!tx || !sig) return res.status(400).json(`signed Tx not provided`)
 
   if (!req.cookies.token) {
-    return res.status(200).json({ response: '', error: 'User needs to be authenticated' });
+    return res.status(200).json({ response: '', error: 'User needs to be authenticated' })
   }
-
-  let decodedCookie = decode(req.cookies.token)
-  const userCookie: any = typeof decodedCookie === 'object' ? decodedCookie : null
-
-  if (!userCookie) {
-    return res.status(200).json({ response: '', error: 'User needs to be authenticated' });
+  let userCookie
+  try{
+    userCookie = verify(req.cookies.token, process.env.JWT_SECRET)
+  }catch(e){
+    res.status(400).json('Token not valid')
   }
-
+  if (!userCookie || !userCookie.id || userCookie.id.length !== 18) {
+      return res.status(200).json({ response: '', error: 'User needs to be authenticated' })
+  }
   const toClaim = true
 
-  if(!toClaim) return res.status(200).json({ response: 'Nothing to claim', error: '' });
+  if(!toClaim) return res.status(200).json({ response: 'Nothing to claim', error: '' })
 
-  const transaction = tx.toString();
-  const signature = sig.toString();
+  const transaction = tx.toString()
+  const signature = sig.toString()
   // console.log("transaction")
   // console.log(transaction)
-  const wallet = new CardanoWalletBackend(blockfrostApiKey);
+  const wallet = new CardanoWalletBackend(blockfrostApiKey)
   // let privateKey = wallet.createNewBech32PrivateKey()
   // console.log("privateKey")
   // console.log(privateKey)
@@ -47,9 +48,12 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
   
   let [txInputsFinal, recipientsFinal, metadata, fee] = await wallet.decodeTransaction(transaction, 1);
 
+  const isValid = validateTx(txInputsFinal, recipientsFinal)
   // console.log("txInputsFinal, recipientsFinal, metadata, fee")
   // console.log(txInputsFinal, recipientsFinal, metadata, fee)
-  
+  if(!isValid) {
+    return  res.status(200).json({ txhash: '', error: "Transaction invalid" });
+  }
   ///check inputs-outputs
   const inFromUs = txInputsFinal.filter(input => input.address == beWalletAddr)
   const ourUTXOHashes = inFromUs.map(inp => inp.utxoHashes?.split(',').filter(s=> s.length > 2))?.reduce((prev, curr) => prev.concat(curr))
@@ -69,7 +73,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     transactionRaw: transaction,
     witnesses: signatures,
     scripts: null,
-    networkId: 1,
+    networkId: 1
   });
   console.log("txHash")
   console.log(txHash)
@@ -92,3 +96,13 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 /////res.status(200).json({ txhash: '', error: txHash });
 
 };
+
+const validateTx = (txInputsFinal, recipientsFinal) => {
+    // User Wallet
+    // NFTs to be sent - Calculate all OG tokens in users wallet, sent it to him, plus amount he is claiming
+
+    // Server Address - Calculate all OG token in server address, sent it back minus what's going to user
+    // NFTs to be sent
+
+    return true
+}

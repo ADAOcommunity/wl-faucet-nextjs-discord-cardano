@@ -73,12 +73,17 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
 
         const myAddress = await wallet.getAddress();
         let netId = await wallet.getNetworkId();
-        // const recipients = [{ "address": "addr_test1qp0eplnevhtnslafjnu2485qa35s88df7hw6u035wkax982r4edrmtyrjncfd6tluhtlhrlvqsjw3nuyegafvsmfgukqj55zet", "amount": "1" }]
+
         let recipients = [
-            {address: `${myAddress}`,  amount: "2.5",}, // Seller Wallet, NFT price 10ADA
-            {address: "addr_test1vrhk4njmxd7srxafdtqp3533q0xnceygzdp3qqdq62ajc6clg9x7s", amount: "0",
-            //  assets:[{"unit":"bd0d0207adcebd72977271949c96bf78bd0ae7af448f0a1561998268.OG","quantity":"1"}]
-            } // NFTs to be sent
+            // User Wallet
+            // NFTs to be sent - Calculate all OG tokens in users wallet, sent it to him, plus amount he is claiming
+            // assets:[{"unit":"bd0d0207adcebd72977271949c96bf78bd0ae7af448f0a1561998268.OG","quantity":"1"}]
+            {address: `${myAddress}`,  amount: "2.5",},
+
+            // Server Address - Calculate all OG token in server address, sent it back minus what's going to user
+            // NFTs to be sent
+            //assets:[{"unit":"bd0d0207adcebd72977271949c96bf78bd0ae7af448f0a1561998268.OG","quantity":"1"}]
+            {address: "addr_test1vrhk4njmxd7srxafdtqp3533q0xnceygzdp3qqdq62ajc6clg9x7s", amount: "0"}
         ]
         try {
             const t = await wallet.transaction({
