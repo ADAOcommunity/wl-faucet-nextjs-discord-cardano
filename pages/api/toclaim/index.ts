@@ -1,4 +1,4 @@
-import { decode } from 'jsonwebtoken';
+import { decode, verify } from 'jsonwebtoken';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { ClaimRes, IClaim } from '../../../interfaces';
 import { userWhitelistedAndClaimed } from '../../../utils/db';
@@ -9,11 +9,13 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
         claimRes = { claim:  {claimed: false, whitelisted: false}, error: 'User needs to be authenticated' }
         return res.status(200).json(claimRes);
     }
-
-    let decodedCookie = decode(req.cookies.token)
-    const userCookie: any = typeof decodedCookie === 'object' ? decodedCookie : null
-
-    if (!userCookie) {
+    let userCookie
+    try{
+        userCookie = verify(req.cookies.token, process.env.JWT_SECRET)
+    }catch(e){
+        res.status(400).json('Token not valid')
+    }
+    if (!userCookie || !userCookie.id || userCookie.id.length !== 18) {
         claimRes = { claim:  {claimed: false, whitelisted: false}, error: 'User needs to be authenticated' }
         return res.status(200).json(claimRes);
     }

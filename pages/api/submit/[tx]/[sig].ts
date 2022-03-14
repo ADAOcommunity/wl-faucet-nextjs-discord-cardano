@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { decode } from 'jsonwebtoken'
+import { decode, verify } from 'jsonwebtoken'
 
 import { CardanoWalletBackend } from '../../../../cardano/cardano-wallet-backend';
 import { addBusyUtxo, setUserClaimed } from "../../../../utils/db";
@@ -11,30 +11,33 @@ const blockfrostApiKey = {
 const beWalletAddr = process.env.WALLET_ADDRESS
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
-  const { tx = null, sig = null } = req.query;
+  const { tx = null, sig = null } = req.query
 
-  if (!tx || !sig) return res.status(400).json(`signed Tx not provided`);
+  if (!tx || !sig) return res.status(400).json(`signed Tx not provided`)
 
+
+  
   if (!req.cookies.token) {
-    return res.status(200).json({ response: '', error: 'User needs to be authenticated' });
+    return res.status(200).json({ response: '', error: 'User needs to be authenticated' })
   }
-
-  let decodedCookie = decode(req.cookies.token)
-  const userCookie: any = typeof decodedCookie === 'object' ? decodedCookie : null
-
-  if (!userCookie) {
-    return res.status(200).json({ response: '', error: 'User needs to be authenticated' });
+  let userCookie
+  try{
+    userCookie = verify(req.cookies.token, process.env.JWT_SECRET)
+  }catch(e){
+    res.status(400).json('Token not valid')
   }
-
+  if (!userCookie || !userCookie.id || userCookie.id.length !== 18) {
+      return res.status(200).json({ response: '', error: 'User needs to be authenticated' })
+  }
   const toClaim = true
 
-  if(!toClaim) return res.status(200).json({ response: 'Nothing to claim', error: '' });
+  if(!toClaim) return res.status(200).json({ response: 'Nothing to claim', error: '' })
 
-  const transaction = tx.toString();
-  const signature = sig.toString();
+  const transaction = tx.toString()
+  const signature = sig.toString()
   // console.log("transaction")
   // console.log(transaction)
-  const wallet = new CardanoWalletBackend(blockfrostApiKey);
+  const wallet = new CardanoWalletBackend(blockfrostApiKey)
   // let privateKey = wallet.createNewBech32PrivateKey()
   // console.log("privateKey")
   // console.log(privateKey)
