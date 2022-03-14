@@ -22,7 +22,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
   try{
     userCookie = verify(req.cookies.token, process.env.JWT_SECRET)
   }catch(e){
-    res.status(400).json('Token not valid')
+    return res.status(400).json('Token not valid')
   }
   if (!userCookie || !userCookie.id || userCookie.id.length !== 18) {
       return res.status(200).json({ response: '', error: 'User needs to be authenticated' })
