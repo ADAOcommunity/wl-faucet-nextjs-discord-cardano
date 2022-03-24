@@ -40,7 +40,6 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         console.log(result)
     }
 
-
     const makeTx = async () => {
         setLoading(true)
         let blockfrostApiKey = {
@@ -58,9 +57,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         if(!loaded) {
             await loader.load()
         }
-        console.log("1")
         const S = loadedLoader.Cardano
-        console.log("2")
         wallet = new CardanoWallet(
                         S,
                         walletState,
@@ -70,20 +67,34 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         console.log(utxos)
         const res = await fetch(`/api/utxos/available`).then(res => res.text())
         utxos = utxos.concat(res)
-
         const myAddress = await wallet.getAddress();
-        let netId = await wallet.getNetworkId();
+        const netId = await wallet.getNetworkId();
+
+        let data =  (await wallet.getBalance()).assets
+        const localAssetCheck = '57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf391652243484f43'
+        const checkUserAssets = data.filter(input => input.unit == localAssetCheck)
+        const quantityUser = checkUserAssets[0].quantity
+        const parseAmount = parseInt(quantityUser) + 5
+        const claimAmount = parseAmount.toString()
+        
+        const assets = (await wallet.getAssets(process.env.WALLET_ADDRESS)).amount
+        const checkServerAssets = assets.filter(input => input.unit == localAssetCheck)
+        const quantityServer = checkServerAssets[0].quantity
+        const giveAmount = (quantityServer - 5).toString()
+
 
         let recipients = [
             // User Wallet
             // NFTs to be sent - Calculate all OG tokens in users wallet, sent it to him, plus amount he is claiming
-            // assets:[{"unit":"bd0d0207adcebd72977271949c96bf78bd0ae7af448f0a1561998268.OG","quantity":"1"}]
-            {address: `${myAddress}`,  amount: "2.5",},
+            {address: `${myAddress}`,  amount: "2.5",
+            assets:[{"unit":"57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.CHOC","quantity":claimAmount}]
+            },
 
             // Server Address - Calculate all OG token in server address, sent it back minus what's going to user
             // NFTs to be sent
             //assets:[{"unit":"bd0d0207adcebd72977271949c96bf78bd0ae7af448f0a1561998268.OG","quantity":"1"}]
-            {address: "addr_test1vrhk4njmxd7srxafdtqp3533q0xnceygzdp3qqdq62ajc6clg9x7s", amount: "0"}
+            {address: "addr_test1vrhk4njmxd7srxafdtqp3533q0xnceygzdp3qqdq62ajc6clg9x7s", amount: "0",
+            assets:[{"unit":"57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.CHOC","quantity":giveAmount}]}
         ]
         try {
             const t = await wallet.transaction({
