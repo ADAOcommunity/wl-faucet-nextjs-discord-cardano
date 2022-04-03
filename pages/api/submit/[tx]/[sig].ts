@@ -98,11 +98,22 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 };
 
 const validateTx = (txInputsFinal, recipientsFinal) => {
-    // User Wallet
-    // NFTs to be sent - Calculate all OG tokens in users wallet, sent it to him, plus amount he is claiming
-
-    // Server Address - Calculate all OG token in server address, sent it back minus what's going to user
-    // NFTs to be sent
-
-    return true
+  let valueIn = 0
+  let valueOut = 0
+  for (let r of txInputsFinal) {
+    if (r.address == beWalletAddr) {
+      for (let a of r.assets) {
+        if (a.unit == "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.CHOC") {
+          valueIn += a.amount
+        }
+      }
+      valueIn += r.amount;
+    }
+  }
+  for (let r of recipientsFinal) {
+    if (r.address = beWalletAddr) {
+      valueOut += r.amount;
+    }
+  }
+  return (valueIn - valueOut) < 741
 }

@@ -73,13 +73,13 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         let data =  (await wallet.getBalance()).assets
         const localAssetCheck = '57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf391652243484f43'
         const checkUserAssets = data.filter(input => input.unit == localAssetCheck)
-        const quantityUser = checkUserAssets[0].quantity
+        const quantityUser = checkUserAssets.length > 0 ? checkUserAssets[0].quantity : 0
         const parseAmount = parseInt(quantityUser) + 5
         const claimAmount = parseAmount.toString()
         
-        const assets = (await wallet.getAssets(process.env.WALLET_ADDRESS)).amount
+        const assets = (await wallet.getBalance()).assets
         const checkServerAssets = assets.filter(input => input.unit == localAssetCheck)
-        const quantityServer = checkServerAssets[0].quantity
+        const quantityServer = checkServerAssets.length > 0 ? checkServerAssets[0].quantity : 0
         const giveAmount = (quantityServer - 5).toString()
 
 
@@ -87,7 +87,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             // User Wallet
             // NFTs to be sent - Calculate all OG tokens in users wallet, sent it to him, plus amount he is claiming
             {address: `${myAddress}`,  amount: "2.5",
-            assets:[{"unit":"57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.CHOC","quantity":claimAmount}]
+            assets:[{"unit":"57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.CHOC","quantity":claimAmount}] // TODO - The unit needs to not be like this format.
             },
 
             // Server Address - Calculate all OG token in server address, sent it back minus what's going to user
