@@ -115,7 +115,10 @@ export default function Index(props: Props) {
             <WalletConnect successCallback={txSubmittedCallback}/>
           </>
           : 
-          <h2>{claimStatus === '' ? "Nothing to claim right now 😿" : claimStatus}</h2>
+          <>
+            <h2>{claimStatus === '' ? "Nothing to claim right now 😿" : claimStatus}</h2>
+            <WalletConnect successCallback={txSubmittedCallback}/>
+          </>
         }
         {claimed ? <button onClick={checkClaimStatus}>Didn't receieve the last claim?</button> : <></>}
         </main>
