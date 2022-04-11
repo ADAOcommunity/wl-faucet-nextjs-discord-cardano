@@ -5,6 +5,7 @@ import { Buffer } from 'buffer'
 import WalletDropdown from './WalletDropdown'
 import { useToast } from '../hooks/useToast';
 import Checkbox from "../components/Checkbox";
+import { BigNum } from '@emurgo/cardano-serialization-lib-browser'
 
 let wallet
 const _Buffer = Buffer
@@ -66,6 +67,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         let utxos = await wallet.getUtxosHex();
         console.log(utxos)
         const res = await fetch(`/api/utxos/available`).then(res => res.text())
+        if(res.includes('ERROR')) return toast('error', res)
         utxos = utxos.concat(res)
         const myAddress = await wallet.getAddress();
         const netId = await wallet.getNetworkId();
@@ -76,11 +78,15 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         const quantityUser = checkUserAssets.length > 0 ? checkUserAssets[0].quantity : 0
         const parseAmount = parseInt(quantityUser) + 5
         const claimAmount = parseAmount.toString()
-        
-        const assets = (await wallet.getBalance()).assets
-        const checkServerAssets = assets.filter(input => input.unit == localAssetCheck)
-        const quantityServer = checkServerAssets.length > 0 ? checkServerAssets[0].quantity : 0
-        const giveAmount = (quantityServer - 5).toString()
+
+
+        const serverUtxoMultiasset = S.TransactionUnspentOutput.from_bytes(Buffer.from(res, 'hex')).output().amount().multiasset()
+        const serverUtxoMultiassetQt = unitCountInMultiassets(serverUtxoMultiasset, "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.CHOC" )
+        // const assets = (await wallet.getBalance()).assets
+        // const checkServerAssets = assets.filter(input => input.unit == localAssetCheck)
+        // const quantityServer = checkServerAssets.length > 0 ? checkServerAssets[0].quantity : 0
+        // const giveAmount = (quantityServer - 5).toString()
+        const giveAmount = (serverUtxoMultiassetQt - 5).toString()
 
 
         let recipients = [
@@ -204,4 +210,27 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             <WalletDropdown enableWallet={enableCardano} address={address}/>
         </div>
     )
+}
+
+const unitCountInMultiassets = (multiAssets, unit) => {
+    let count = 0
+    let multiAssetKeys = multiAssets.keys();
+    for (let assetsKeyIndex of [
+        ...Array(multiAssetKeys.len()).keys(),
+      ]) {
+        let assetsKey = multiAssetKeys.get(assetsKeyIndex);
+        let assets = multiAssets.get(assetsKey);
+        let assetKeys = assets.keys();
+        let policyId = Buffer.from(assetsKey.to_bytes()).toString('hex');
+        for (let assetKeyIndex of [...Array(assetKeys.len()).keys()]) {
+            let asset = assetKeys.get(assetKeyIndex);
+            let assetNum: BigNum = assets.get(asset);
+            let un =
+                policyId +
+                '.' +
+                Buffer.from((Buffer.from(asset.name()).toString('hex')), 'hex').toString('ascii')
+            if (unit === un) count += Number(assetNum.to_str())
+        }
+    }
+    return count
 }

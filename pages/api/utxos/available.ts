@@ -26,9 +26,11 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
     } else {
         availableUtxos = addrUtxos.filter(utxo => !busyUtxoHashes.includes(`${utxo.tx_hash}_${utxo.output_index}`))
     }
-
     const convertedUtxos = await Promise.all(availableUtxos.map(async utxo => await wallet.utxoToHex(utxo, searchAddress)))
-    
-    const chooseRandom = sample(convertedUtxos)
-    res.status(200).json(chooseRandom);
+    if(convertedUtxos.length > 0){
+        const chooseRandom = sample(convertedUtxos)
+        return res.status(200).json(chooseRandom);
+    } else {
+        return res.status(200).json('ERROR: No utxos are currently available');
+    }
 }
