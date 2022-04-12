@@ -53,7 +53,7 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
 
                 //set claimed user false
                 // setUserNotClaimed(userCookie.id)
-                claimRes = { claim: {claimed: false, whitelisted: true}, error: `It seems like tx didn't go through. Please reach out to us on our discord.` }
+                claimRes = { claim: {claimed: true, whitelisted: true}, error: `It seems like tx didn't go through. Please reach out to us on our discord.` }
                 return res.status(200).json(claimRes);
             }
         } 
