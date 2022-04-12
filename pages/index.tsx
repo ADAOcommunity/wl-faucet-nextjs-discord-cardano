@@ -51,9 +51,7 @@ export default function Index(props: Props) {
     const claimRes: ClaimRes = await fetch('/api/toclaim').then(res => {
       return res.json()
     }).then(json => json)
-    console.log(claimRes)
-    console.log(claimRes)
-    if(claimRes.claim.whitelisted === false) {
+    if(claimRes.claim.whitelisted === true) {
       if(claimRes.claim.claimed === false) {
         toast('success', 'You have unclaimed tokens!')
         setCanClaim(true)
