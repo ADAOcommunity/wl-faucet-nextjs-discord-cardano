@@ -73,7 +73,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         const netId = await wallet.getNetworkId();
 
         let data =  (await wallet.getBalance()).assets
-        const localAssetCheck = '57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf391652243484f43'
+        const localAssetCheck = 'bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328536f756e644d6f6e6579'
         const checkUserAssets = data.filter(input => input.unit == localAssetCheck)
         const quantityUser = checkUserAssets.length > 0 ? checkUserAssets[0].quantity : 0
         const parseAmount = parseInt(quantityUser) + 5
@@ -81,11 +81,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
 
 
         const serverUtxoMultiasset = S.TransactionUnspentOutput.from_bytes(Buffer.from(res, 'hex')).output().amount().multiasset()
-        const serverUtxoMultiassetQt = unitCountInMultiassets(serverUtxoMultiasset, "57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.CHOC" )
-        // const assets = (await wallet.getBalance()).assets
-        // const checkServerAssets = assets.filter(input => input.unit == localAssetCheck)
-        // const quantityServer = checkServerAssets.length > 0 ? checkServerAssets[0].quantity : 0
-        // const giveAmount = (quantityServer - 5).toString()
+        const serverUtxoMultiassetQt = unitCountInMultiassets(serverUtxoMultiasset, "bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328.SoundMoney" )
         const giveAmount = (serverUtxoMultiassetQt - 5).toString()
 
 
@@ -93,14 +89,13 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             // User Wallet
             // NFTs to be sent - Calculate all OG tokens in users wallet, sent it to him, plus amount he is claiming
             {address: `${myAddress}`,  amount: "2.5",
-            assets:[{"unit":"57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.CHOC","quantity":claimAmount}] // TODO - The unit needs to not be like this format.
+            assets:[{"unit":"bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328.SoundMoney","quantity":claimAmount}] // TODO - The unit needs to not be like this format.
             },
 
             // Server Address - Calculate all OG token in server address, sent it back minus what's going to user
             // NFTs to be sent
-            //assets:[{"unit":"bd0d0207adcebd72977271949c96bf78bd0ae7af448f0a1561998268.OG","quantity":"1"}]
-            {address: "addr_test1vrhk4njmxd7srxafdtqp3533q0xnceygzdp3qqdq62ajc6clg9x7s", amount: "0",
-            assets:[{"unit":"57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522.CHOC","quantity":giveAmount}]}
+            {address: "addr1v9eer9pltfdzalkk4psyxvc59pwxy9njf0zsk095zkutu8grxjxqv", amount: "0",
+            assets:[{"unit":"bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328.SoundMoney","quantity":giveAmount}]}
         ]
         try {
             const t = await wallet.transaction({
@@ -114,25 +109,22 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             })
          
             const signature = await wallet.signTx(t, true)
-            const res = await fetch(`/api/submit/${t}/${signature}`).then(res => res.json())
+            const submitRes = await fetch(`/api/submit/${t}/${signature}`).then(res => res.json())
 
-            if(res.txhash !== '') {
-                successCallback(res.txhash)
+            if(submitRes.txhash !== '') {
+                successCallback(submitRes.txhash)
             }
             // const res = 'res-temp'
             // const txhash = await wallet.submitTx({transactionRaw: t, witnesses: [signature], networkId: 1})
-            const resTxId = res.txhash
+            const resTxId = submitRes.txhash
             toast('success', `Transaction ID ${resTxId}`)
             return res
 
-        }
-        catch(err){
+        } catch(err){
             console.log(err)
-            
         }
         toast('error', "Transaction Cancelled")
         setLoading(false)
-        
     }
 
     const enableCardano = async (wallet = 'nami') => {

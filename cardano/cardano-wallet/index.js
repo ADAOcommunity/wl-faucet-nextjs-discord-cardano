@@ -220,7 +220,7 @@ class CardanoWallet {
       let ReceiveAddress = recipient.address;
       let multiAsset = this._makeMultiAsset(recipient?.assets || []);
       let mintedAssets = this._makeMintedAssets(recipient?.mintedAssets || []);
-
+      if(!lovelace) lovelace = '0'
       let outputValue = this.S.Value.new(this.S.BigNum.from_str(lovelace));
       let minAdaMint = this.S.Value.new(this.S.BigNum.from_str('0'));
 

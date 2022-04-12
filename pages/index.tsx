@@ -93,11 +93,6 @@ export default function Index(props: Props) {
         <h1>
           Hey, {props.user.username}#{props.user.discriminator}
         </h1>
-          {/* <div className="flex items-center justify-center space-x-2">
-            <div className="spinner-border animate-spin inline-block w-4 h-4 border-1 rounded-full" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div> */}
         {loading ?
         <>
         <div className="flex items-center justify-center space-x-2">
@@ -115,7 +110,6 @@ export default function Index(props: Props) {
           : 
           <>
             <h2>{claimStatus === '' ? "Nothing to claim right now 😿" : claimStatus}</h2>
-            <WalletConnect successCallback={txSubmittedCallback}/>
           </>
         }
         {claimed ? <button onClick={checkClaimStatus}>Didn't receieve the last claim?</button> : <></>}
