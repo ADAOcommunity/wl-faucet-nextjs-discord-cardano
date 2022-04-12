@@ -67,7 +67,7 @@ const userWldAndUnclaimedQuery = (userid: string) => {
 
 export async function userWhitelistedAndClaimed(id: string): Promise<IClaim> {
     const cont = getUserContainer()
-    const { resources: items } = await cont.items.query(userWldAndUnclaimedQuery(id)).fetchAll();
+    const { resources: items } = (await cont.items.query(userWldAndUnclaimedQuery(id)).fetchAll());
     if(items.length > 0) { 
         if(items[0].claimed === false) return { claimed: false, whitelisted: true}
         return { claimed: true, whitelisted: true}
@@ -82,6 +82,15 @@ export async function setUserClaimed(id: string) {
     const wlUser = {
         id: id,
         claimed: true
+    }
+    await cont.item(id, id).replace(wlUser);
+}
+
+export async function setUserNotClaimed(id: string) {
+    const cont = getUserContainer()
+    const wlUser = {
+        id: id,
+        claimed: false
     }
     await cont.item(id, id).replace(wlUser);
 }
