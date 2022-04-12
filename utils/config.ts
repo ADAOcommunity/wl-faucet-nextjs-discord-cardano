@@ -23,12 +23,8 @@ function validateEnv<T extends string = string>(
 
 export const config = {
   cookieName: "token",
-  clientId: validateEnv("CLIENT_ID"),
-  clientSecret: validateEnv("CLIENT_SECRET"),
-  appUri: validateEnv("APP_URI", "http://localhost:3000", true),
-  jwtSecret: validateEnv(
-    "JWT_SECRET",
-    "this is a development value that should be changed in production!!!!!",
-    true
-  ),
+  clientId: process.env.CLIENT_ID,
+  clientSecret: process.env.CLIENT_SECRET,
+  appUri: process.env.APP_URI,
+  jwtSecret: process.env.JWT_SECRET
 } as const;
