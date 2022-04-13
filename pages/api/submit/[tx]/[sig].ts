@@ -46,7 +46,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     process.env.WALLET_ADDRESS
   );
 
-  let [txInputsFinal, recipientsFinal, metadata, fee] = await wallet.decodeTransaction(transaction, 1);
+  let [txInputsFinal, recipientsFinal, metadata, fee] = await wallet.decodeTransaction(transaction, 0);
 
   const isValid = validateTx(txInputsFinal, recipientsFinal)
   if (!isValid) {
@@ -64,7 +64,8 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     transactionRaw: transaction,
     witnesses: signatures,
     scripts: null,
-    networkId: 1
+    networkId: 0
+    // networkId: 1
   });
   console.log("txHash")
   console.log(txHash)
@@ -88,12 +89,12 @@ const validateTx = (txInputsFinal, recipientsFinal) => {
     if (r.address == beWalletAddr) {
       if(Array.isArray(r.assets)) {
         for (let a of r.assets) {
-          if (a.unit == "bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328.SoundMoney") {
+          if (a.unit == "648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE") {
             valueIn += a.amount
           }
         }
       } else {
-        if (r.assets.unit == "bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328.SoundMoney") {
+        if (r.assets.unit == "648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE") {
           valueIn += r.assets.amount
         }
       }

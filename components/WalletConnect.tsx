@@ -48,17 +48,12 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             1: "mainnetlBYozUOJH7r3Lm0p7qarAwvxQRTWZSRY" // mainnet
             }
         
-        console.log("makeTx")
         const loaded = typeof loader !== 'undefined'
-        console.log("loader")
-        console.log(loaded)
-
-        const loadedLoader = loader
 
         if(!loaded) {
             await loader.load()
         }
-        const S = loadedLoader.Cardano
+        const S = loader.Cardano
         wallet = new CardanoWallet(
                         S,
                         walletState,
@@ -68,20 +63,23 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         console.log(utxos)
         const res = await fetch(`/api/utxos/available`).then(res => res.text())
         if(res.includes('ERROR')) return toast('error', res)
+        console.log('res')
+        console.log(res)
         utxos = utxos.concat(res)
         const myAddress = await wallet.getAddress();
         const netId = await wallet.getNetworkId();
 
         let data =  (await wallet.getBalance()).assets
-        const localAssetCheck = 'bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328536f756e644d6f6e6579'
+        const localAssetCheck = '648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff19877444f4745'
         const checkUserAssets = data.filter(input => input.unit == localAssetCheck)
         const quantityUser = checkUserAssets.length > 0 ? checkUserAssets[0].quantity : 0
         const parseAmount = parseInt(quantityUser) + 5
         const claimAmount = parseAmount.toString()
-
+        console.log('claimAmount')
+        console.log(claimAmount)
 
         const serverUtxoMultiasset = S.TransactionUnspentOutput.from_bytes(Buffer.from(res, 'hex')).output().amount().multiasset()
-        const serverUtxoMultiassetQt = unitCountInMultiassets(serverUtxoMultiasset, "bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328.SoundMoney" )
+        const serverUtxoMultiassetQt = unitCountInMultiassets(serverUtxoMultiasset, "648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE" )
         const giveAmount = (serverUtxoMultiassetQt - 5).toString()
 
 
@@ -89,13 +87,13 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             // User Wallet
             // NFTs to be sent - Calculate all OG tokens in users wallet, sent it to him, plus amount he is claiming
             {address: `${myAddress}`,  amount: "2.5",
-            assets:[{"unit":"bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328.SoundMoney","quantity":claimAmount}] // TODO - The unit needs to not be like this format.
+            assets:[{"unit":"648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE","quantity":claimAmount}] // TODO - The unit needs to not be like this format.
             },
 
             // Server Address - Calculate all OG token in server address, sent it back minus what's going to user
             // NFTs to be sent
-            {address: "addr1v9eer9pltfdzalkk4psyxvc59pwxy9njf0zsk095zkutu8grxjxqv", amount: "0",
-            assets:[{"unit":"bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328.SoundMoney","quantity":giveAmount}]}
+            {address: "addr_test1vpeer9pltfdzalkk4psyxvc59pwxy9njf0zsk095zkutu8gcwx60f", amount: "0",
+            assets:[{"unit":"648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE","quantity":giveAmount}]}
         ]
         try {
             const t = await wallet.transaction({
@@ -122,6 +120,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
 
         } catch(err){
             console.log(err)
+            toast('error', err.toString())
         }
         toast('error', "Transaction Cancelled")
         setLoading(false)

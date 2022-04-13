@@ -3,6 +3,7 @@ import { Utxo } from '../../../interfaces'
 import { getInUseHashesArray } from '../../../utils/db';
 import { CardanoWalletBackend } from '../../../cardano/cardano-wallet-backend';
 import sample from 'lodash.sample';
+import { Console } from 'console';
 
 const blockfrostApiKey = {
     0: `testnetRvOtxC8BHnZXiBvdeM9b3mLbi8KQPwzA`, // testnet
@@ -16,7 +17,7 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
 
     const searchAddress = process.env.WALLET_ADDRESS
     const wallet = new CardanoWalletBackend(blockfrostApiKey);
-    const addrUtxos: Utxo[] = await wallet.getAddressUtxos(searchAddress)
+    const addrUtxos: Utxo[] = await wallet.getAddressUtxos(searchAddress, 0)
     if(!addrUtxos || addrUtxos.length < 1 || !addrUtxos[0].tx_hash) return res.status(200).json('ERROR: No utxos are currently available');
     
     const busyUtxoHashes: string[] = await getInUseHashesArray(addrUtxos.map(u => `${u.tx_hash}_${u.output_index}`))

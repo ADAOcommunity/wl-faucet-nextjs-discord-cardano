@@ -41,7 +41,8 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
             const wallet = new CardanoWalletBackend(blockfrostApiKey);
             let tx = await wallet._blockfrostRequest({
                 endpoint: `/txs/${record.txHash}`,
-                networkId: 1,
+                networkId: 0,
+                // networkId: 1,
                 method: 'GET',
             });
             if(tx && tx.hash) {

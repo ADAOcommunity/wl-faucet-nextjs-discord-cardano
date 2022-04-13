@@ -49,7 +49,7 @@ class CardanoWalletBackend {
       .derive(0);
 
     this.baseAddr = address ? address : S.EnterpriseAddress.new(
-      S.NetworkInfo.mainnet().network_id(),
+      S.NetworkInfo.testnet().network_id(),
       S.StakeCredential.from_keyhash(this.utxoPubKey.to_raw_key().hash())
     ).to_address().to_bech32()
 
