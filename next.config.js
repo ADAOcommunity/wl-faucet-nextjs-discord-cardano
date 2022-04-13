@@ -5,16 +5,5 @@ module.exports = {
       config.experiments = { asyncWebAssembly: true, layers: true }
   
       return config
-    },
-    env: {
-        COSMOS_KEY: '-',
-        COSMOS_ENDPOINT: '-',
-        COSMOS_DATABASE: '-',
-        CLIENT_ID: '-',
-        CLIENT_SECRET: '-',
-        APP_URI: '-',
-        JWT_SECRET: '-',
-        WALLET_PRIV_KEY: '-',
-        WALLET_ADDRESS: '-'            
-    },
+    }
   };
