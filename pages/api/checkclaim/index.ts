@@ -1,7 +1,7 @@
-import { decode } from 'jsonwebtoken';
+import { decode, verify } from 'jsonwebtoken';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { ClaimRes, IClaim, UtxoRecord } from '../../../interfaces';
-import { getUsersClaim } from '../../../utils/db';
+import { getUsersClaim, setUserNotClaimed } from '../../../utils/db';
 import { CardanoWalletBackend } from '../../../cardano/cardano-wallet-backend';
 const blockfrostApiKey = {
   0: `testnetRvOtxC8BHnZXiBvdeM9b3mLbi8KQPwzA`, // testnet
@@ -15,9 +15,12 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
         return res.status(200).json(claimRes);
     }
 
-    let decodedCookie = decode(req.cookies.token)
-    const userCookie: any = typeof decodedCookie === 'object' ? decodedCookie : null
-
+    let userCookie
+    try{
+        userCookie = verify(req.cookies.token, process.env.JWT_SECRET)
+    }catch(e){
+        return res.status(400).json('Token not valid')
+    }
     if (!userCookie || !userCookie.id || userCookie.id.length !== 18) {
         claimRes = { claim:  {claimed: false, whitelisted: false}, error: 'User needs to be authenticated' }
         return res.status(200).json(claimRes);
@@ -38,7 +41,8 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
             const wallet = new CardanoWalletBackend(blockfrostApiKey);
             let tx = await wallet._blockfrostRequest({
                 endpoint: `/txs/${record.txHash}`,
-                networkId: 1,
+                networkId: 0,
+                // networkId: 1,
                 method: 'GET',
             });
             if(tx && tx.hash) {
@@ -47,13 +51,15 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
             }
             else{
                 //delete UTXO record
+
                 //set claimed user false
-                claimRes = { claim: {claimed: false, whitelisted: true}, error: `You can try again now. Ideally, use a new wallet with no other interactions accross Dapps.` }
+                // setUserNotClaimed(userCookie.id)
+                claimRes = { claim: {claimed: true, whitelisted: true}, error: `It seems like tx didn't go through. Please reach out to us on our discord.` }
                 return res.status(200).json(claimRes);
             }
         } 
         else {
-            claimRes = { claim: {claimed: true, whitelisted: true}, error: `Your claiming transaction is still pending, because of the congestion, wait at least 5 hours after you submit.` }
+            claimRes = { claim: {claimed: true, whitelisted: true}, error: `Because of the congestion, wait at least 5 hours after you submit to try again.` }
             return res.status(200).json(claimRes);
         }
        

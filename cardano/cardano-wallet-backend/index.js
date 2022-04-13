@@ -24,6 +24,9 @@ class CardanoWalletBackend {
   }
 
   setPrivateKey(bech32PrivateKey, address) {
+    console.log('setting private key')
+    console.log("bech32PrivateKey, address")
+    console.log(bech32PrivateKey, address)
     // generating all keys following https://github.com/Emurgo/cardano-serialization-lib/blob/master/doc/getting-started/generating-keys.md
     this.privateKey = S.Bip32PrivateKey.from_bech32(bech32PrivateKey);
 
@@ -46,7 +49,7 @@ class CardanoWalletBackend {
       .derive(0);
 
     this.baseAddr = address ? address : S.EnterpriseAddress.new(
-      S.NetworkInfo.mainnet().network_id(),
+      S.NetworkInfo.testnet().network_id(),
       S.StakeCredential.from_keyhash(this.utxoPubKey.to_raw_key().hash())
     ).to_address().to_bech32()
 
@@ -179,13 +182,14 @@ class CardanoWalletBackend {
   };
 
   async utxoFromJson(output, address) {
-    // console.log("utxoFromJson")
+    const outHash = output.tx_hash ?  output.tx_hash : output.txHash
+    const outIndex = output.output_index ? output.output_index : output.txId
     return S.TransactionUnspentOutput.new(
       S.TransactionInput.new(
         S.TransactionHash.from_bytes(
-          Buffer.from(output.tx_hash || output.txHash, 'hex')
+          Buffer.from(outHash, 'hex')
         ),
-        output.output_index || output.txId
+        outIndex
       ),
       S.TransactionOutput.new(
         S.Address.from_bytes(Buffer.from(address, 'hex')),
@@ -262,7 +266,6 @@ class CardanoWalletBackend {
         networkId: networkId,
         method: 'GET',
       });
-
       const txInput = tx.outputs.filter(
         (row) => row.output_index == txIndex,
       )[0];

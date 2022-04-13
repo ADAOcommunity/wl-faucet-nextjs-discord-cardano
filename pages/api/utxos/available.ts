@@ -3,6 +3,7 @@ import { Utxo } from '../../../interfaces'
 import { getInUseHashesArray } from '../../../utils/db';
 import { CardanoWalletBackend } from '../../../cardano/cardano-wallet-backend';
 import sample from 'lodash.sample';
+import { Console } from 'console';
 
 const blockfrostApiKey = {
     0: `testnetRvOtxC8BHnZXiBvdeM9b3mLbi8KQPwzA`, // testnet
@@ -16,19 +17,21 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
 
     const searchAddress = process.env.WALLET_ADDRESS
     const wallet = new CardanoWalletBackend(blockfrostApiKey);
-
-    const addrUtxos: Utxo[] = await wallet.getAddressUtxos(searchAddress)
+    const addrUtxos: Utxo[] = await wallet.getAddressUtxos(searchAddress, 0)
+    if(!addrUtxos || addrUtxos.length < 1 || !addrUtxos[0].tx_hash) return res.status(200).json('ERROR: No utxos are currently available');
     
-    const busyUtxoHashes: string[] = await getInUseHashesArray(addrUtxos.map(u => `${u.tx_hash}_${u.output_index}`))//['7abbc44194a6fabad72607b899c5e364c0e935fc2315118c3aec6c9d7dd5af50_0']//get busy hashes
+    const busyUtxoHashes: string[] = await getInUseHashesArray(addrUtxos.map(u => `${u.tx_hash}_${u.output_index}`))
     let availableUtxos
     if(!busyUtxoHashes || busyUtxoHashes.length < 1) {
         availableUtxos = addrUtxos
     } else {
         availableUtxos = addrUtxos.filter(utxo => !busyUtxoHashes.includes(`${utxo.tx_hash}_${utxo.output_index}`))
     }
-
     const convertedUtxos = await Promise.all(availableUtxos.map(async utxo => await wallet.utxoToHex(utxo, searchAddress)))
-    
-    const chooseRandom = sample(convertedUtxos)
-    res.status(200).json(chooseRandom);
+    if(convertedUtxos.length > 0){
+        const chooseRandom = sample(convertedUtxos)
+        return res.status(200).json(chooseRandom);
+    } else {
+        return res.status(200).json('ERROR: No utxos are currently available');
+    }
 }

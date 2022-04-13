@@ -108,7 +108,6 @@ class CardanoWallet {
 
     const availableAda = countedValue.coin().checked_sub(minAda);
     const lovelace = availableAda.to_str();
-    console.log('assets', protocolParameter.minUtxo);
     const assets = [];
     if (value.multiasset()) {
       const multiAssets = value.multiasset().keys();
@@ -221,7 +220,7 @@ class CardanoWallet {
       let ReceiveAddress = recipient.address;
       let multiAsset = this._makeMultiAsset(recipient?.assets || []);
       let mintedAssets = this._makeMintedAssets(recipient?.mintedAssets || []);
-
+      if(!lovelace) lovelace = '0'
       let outputValue = this.S.Value.new(this.S.BigNum.from_str(lovelace));
       let minAdaMint = this.S.Value.new(this.S.BigNum.from_str('0'));
 
@@ -446,7 +445,6 @@ class CardanoWallet {
       for (const asset of _assets) {
         const AssetName = this.S.AssetName.new(Buffer.from(asset.unit, 'hex'));
         const BigNum = this.S.BigNum.from_str(asset.quantity.toString());
-
         Assets.insert(AssetName, BigNum);
       }
 
@@ -962,6 +960,16 @@ class CardanoWallet {
 
     return txhash;
   }
+
+  async getAssets(address) {
+    let units = await this._blockfrostRequest({
+      endpoint: `/addresses/${address}`,
+      networkId: 0,
+      method: 'GET'
+    })
+    return units
+  }
+
   async _getProtocolParameter(networkId) {
     let latestBlock = await this._blockfrostRequest({
       endpoint: '/blocks/latest',

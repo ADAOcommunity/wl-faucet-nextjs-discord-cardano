@@ -3,6 +3,9 @@ import CardanoWallet from "../cardano/cardano-wallet"
 import loader from '../cardano/cardano-wallet/loader'
 import { Buffer } from 'buffer'
 import WalletDropdown from './WalletDropdown'
+import { useToast } from '../hooks/useToast';
+import Checkbox from "../components/Checkbox";
+import { BigNum } from '@emurgo/cardano-serialization-lib-browser'
 
 let wallet
 const _Buffer = Buffer
@@ -12,6 +15,8 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
     const [connected, setConnected] = useState(false)
     const [walletState, setWalletState] = useState()
     const [loading, setLoading] = useState(false)
+    const [result, setResult] = useState(true)
+    const toast = useToast(3000);
 
     // const walletCtx = useContext(WalletContext)
 
@@ -31,48 +36,65 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         }
     }
 
+    const checkboxData = (checkHandler) => {
+        setResult(checkHandler)
+        console.log(result)
+    }
+
     const makeTx = async () => {
         setLoading(true)
         let blockfrostApiKey = {
-            0: "testnetRvOtxC8BHnZXiBvdeM9b3mLbi8KQPwzA", // testnet
-            1: "mainnetGHf1olOJblaj5LD8rcRudajSJGKRU6IL" // mainnet
+            0: "testneto48QlLzZUqe1bLNas393LNKOAzAsJNOE", // testnet
+            1: "mainnetlBYozUOJH7r3Lm0p7qarAwvxQRTWZSRY" // mainnet
             }
         
-        console.log("makeTx")
         const loaded = typeof loader !== 'undefined'
-        console.log("loader")
-        console.log(loaded)
-
-        const loadedLoader = loader
 
         if(!loaded) {
             await loader.load()
         }
-        console.log("1")
-        const S = loadedLoader.Cardano
-        console.log("2")
+        const S = loader.Cardano
         wallet = new CardanoWallet(
                         S,
                         walletState,
                         blockfrostApiKey
                     )
         let utxos = await wallet.getUtxosHex();
+        console.log(utxos)
         const res = await fetch(`/api/utxos/available`).then(res => res.text())
-        console.log("res")
+        if(res.includes('ERROR')) return toast('error', res)
+        console.log('res')
         console.log(res)
-        console.log("utxos")
-        console.log(utxos)
         utxos = utxos.concat(res)
-        console.log("utxos concat")
-        console.log(utxos)
         const myAddress = await wallet.getAddress();
-        let netId = await wallet.getNetworkId();
-        // const recipients = [{ "address": "addr1qx4suzvst55qy2ppyu5c4x2kct23kv6r26n6nhckqn3f22sjftnu9ft6l5qr2x49r5kg3wda6les343sa9cpcxjz40sqst8yae", "amount": "1" }]
+        const netId = await wallet.getNetworkId();
+
+        let data =  (await wallet.getBalance()).assets
+        const localAssetCheck = '648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff19877444f4745'
+        const checkUserAssets = data.filter(input => input.unit == localAssetCheck)
+        const quantityUser = checkUserAssets.length > 0 ? checkUserAssets[0].quantity : 0
+        const parseAmount = parseInt(quantityUser) + 5
+        const claimAmount = parseAmount.toString()
+        console.log('claimAmount')
+        console.log(claimAmount)
+
+        const serverUtxoMultiasset = S.TransactionUnspentOutput.from_bytes(Buffer.from(res, 'hex')).output().amount().multiasset()
+        const serverUtxoMultiassetQt = unitCountInMultiassets(serverUtxoMultiasset, "648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE" )
+        const giveAmount = (serverUtxoMultiassetQt - 5).toString()
+
+
         let recipients = [
-            {address: "addr1qx8p9zjyk2us3jcq4a5cn0xf8c2ydrz2cxc5280j977yvc0gtg8vh0c9sp7ce579jhpmynlk758lxhvf52sfs9mrprws3mseux", amount: "2.5"}, // Seller Wallet, NFT price 10ADA
-            {address: `${myAddress}`,  amount: "0",
-             assets:[{"unit":"bc25d07c8629c0695e4ec54367f6471b23fe7882b4538806ffeb8328.SoundMoney","quantity":"1000"}]} // NFTs to be sent
-            ]
+            // User Wallet
+            // NFTs to be sent - Calculate all OG tokens in users wallet, sent it to him, plus amount he is claiming
+            {address: `${myAddress}`,  amount: "2.5",
+            assets:[{"unit":"648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE","quantity":claimAmount}] // TODO - The unit needs to not be like this format.
+            },
+
+            // Server Address - Calculate all OG token in server address, sent it back minus what's going to user
+            // NFTs to be sent
+            {address: "addr_test1vpeer9pltfdzalkk4psyxvc59pwxy9njf0zsk095zkutu8gcwx60f", amount: "0",
+            assets:[{"unit":"648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE","quantity":giveAmount}]}
+        ]
         try {
             const t = await wallet.transaction({
                 PaymentAddress: myAddress,
@@ -83,24 +105,25 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
                 networkId: netId.id,
                 ttl: 18000
             })
-       
+         
             const signature = await wallet.signTx(t, true)
-            const res = await fetch(`/api/submit/${t}/${signature}`).then(res => res.json())
+            const submitRes = await fetch(`/api/submit/${t}/${signature}`).then(res => res.json())
 
-            if(res.txhash !== '') {
-                successCallback(res.txhash)
+            if(submitRes.txhash !== '') {
+                successCallback(submitRes.txhash)
             }
             // const res = 'res-temp'
             // const txhash = await wallet.submitTx({transactionRaw: t, witnesses: [signature], networkId: 1})
-            console.log(`${res}`)
-        }
-        catch(err){
-            console.log(err)
-            
-        }
+            const resTxId = submitRes.txhash
+            toast('success', `Transaction ID ${resTxId}`)
+            return res
 
+        } catch(err){
+            console.log(err)
+            toast('error', err.toString())
+        }
+        toast('error', "Transaction Cancelled")
         setLoading(false)
-        
     }
 
     const enableCardano = async (wallet = 'nami') => {
@@ -161,11 +184,16 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
                         </div>
                     </>
                     : 
-                    <button onClick={() => makeTx()} className="m-2 p-10 text-white rounded-xl transition-all duration-500 bg-gradient-to-br to-blue-500 via-black from-blue-900 bg-size-200 bg-pos-0 hover:bg-pos-100">
-                    <h2>
-                        Claim
-                    </h2>
-                    </button> 
+                    <div>
+                        <button onClick={() => {result == true ? toast("error", "Accept the Terms of Service to Claim") : makeTx(); setResult(true)}}
+                            className="m-2 p-10 text-black font-bold rounded-xl transition-all duration-500 bg-gradient-to-br to-blue-500 via-white from-blue-900 bg-size-200 bg-pos-0 hover:bg-pos-100">
+                        <h2>
+                            Claim
+                        </h2>
+                        </button>
+                        <Checkbox checkboxData={checkboxData}/>
+                    </div>
+                    
                 :
                 <></>
                 }
@@ -173,4 +201,27 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             <WalletDropdown enableWallet={enableCardano} address={address}/>
         </div>
     )
+}
+
+const unitCountInMultiassets = (multiAssets, unit) => {
+    let count = 0
+    let multiAssetKeys = multiAssets.keys();
+    for (let assetsKeyIndex of [
+        ...Array(multiAssetKeys.len()).keys(),
+      ]) {
+        let assetsKey = multiAssetKeys.get(assetsKeyIndex);
+        let assets = multiAssets.get(assetsKey);
+        let assetKeys = assets.keys();
+        let policyId = Buffer.from(assetsKey.to_bytes()).toString('hex');
+        for (let assetKeyIndex of [...Array(assetKeys.len()).keys()]) {
+            let asset = assetKeys.get(assetKeyIndex);
+            let assetNum: BigNum = assets.get(asset);
+            let un =
+                policyId +
+                '.' +
+                Buffer.from((Buffer.from(asset.name()).toString('hex')), 'hex').toString('ascii')
+            if (unit === un) count += Number(assetNum.to_str())
+        }
+    }
+    return count
 }
