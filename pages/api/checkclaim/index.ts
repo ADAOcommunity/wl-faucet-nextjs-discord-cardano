@@ -36,8 +36,7 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
         }
         var dt = new Date()
         dt.setHours( dt.getHours() - 5);
-
-        if(dt > record.used) {
+        if(dt.getTime() > new Date(record.used).getTime()) {
             const wallet = new CardanoWalletBackend(blockfrostApiKey);
             let tx = await wallet._blockfrostRequest({
                 endpoint: `/txs/${record.txHash}`,
