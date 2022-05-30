@@ -12,7 +12,7 @@ export async function getInUseHashesArray(hashes: string[]): Promise<string[]> {
         },
     })
 
-    if (items.length > 0) {
+    if (items && items.length > 0) {
         return items.map(item => item.hash)
     } else {
         return []
