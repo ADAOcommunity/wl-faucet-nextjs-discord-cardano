@@ -30,10 +30,11 @@ export interface DiscordUserCookie {
 }
 
 export interface UtxoRecord {
-    id:     string
+    id:     number
     used:   Date
     usedById: string
     txHash: string
+    hash: string
     // used: boolean;
 }
 

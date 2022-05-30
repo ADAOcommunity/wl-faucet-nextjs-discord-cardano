@@ -1,41 +1,19 @@
-const CosmosClient = require("@azure/cosmos").CosmosClient;
-import { Container } from "@azure/cosmos";
-import { IClaim, UtxoRecord, WhitelistedUser } from "../interfaces"
+import { IClaim, UtxoRecord } from "../interfaces"
 import sample from 'lodash.sample'
+import { PrismaClient } from '@prisma/client'
 
-const key = process.env.COSMOS_KEY || "<cosmos key>";
-const endpoint = process.env.COSMOS_ENDPOINT || "<cosmos endpoint>";
-const databaseId = process.env.COSMOS_DATABASE || "<cosmos database>";
-const utxoContainer = 'UtxoRecords'
-const userContainer = 'WhitelistedUsers'
-
-
-const getUtxoContainer = (): Container => {
-    const client = new CosmosClient({ endpoint, key })
-    return  client.database(databaseId).container(utxoContainer);
-}
-
-const getUserContainer = (): Container => {
-    const client = new CosmosClient({ endpoint, key })
-    return  client.database(databaseId).container(userContainer);
-}
-
-const inUseHashesQuery = (hashes: string[]) => {
-    return {
-        query: "SELECT * FROM t WHERE ARRAY_CONTAINS(@hashes, t.id, false)",
-        parameters: [{
-            name: "@hashes",
-            value: hashes 
-        }]
-    }
-};
+const prisma = new PrismaClient()
 
 export async function getInUseHashesArray(hashes: string[]): Promise<string[]> {
-    console.log(hashes)
-    const cont = getUtxoContainer()
-    const { resources: items } = await cont.items.query(inUseHashesQuery(hashes)).fetchAll();
-    if(items.length > 0) { 
-        return items.map(item => item.id)
+
+    const items = await prisma.utxoRecord.findMany({
+        where: {
+            hash: { in: hashes },
+        },
+    })
+
+    if (items.length > 0) {
+        return items.map(item => item.hash)
     } else {
         return []
     }
@@ -43,10 +21,10 @@ export async function getInUseHashesArray(hashes: string[]): Promise<string[]> {
 
 export async function getFreeHashesArray(hashes: string[]): Promise<string[]> {
     const busyHashes = await getInUseHashesArray(hashes)
-    if(busyHashes.length > 0){
+    if (busyHashes.length > 0) {
         hashes.filter(hash => !busyHashes.includes(hash))
-    } else { 
-        return hashes 
+    } else {
+        return hashes
     }
 }
 
@@ -55,73 +33,48 @@ export async function getFreeUxtoHash(hashes: string[]): Promise<string> {
     return sample(freeHashes)
 }
 
-const userWldAndUnclaimedQuery = (userid: string) => {
-    return {
-        query: "SELECT u.claimed FROM u WHERE u.id = @userid",
-        parameters: [{
-            name: "@userid",
-            value: userid 
-        }]
-    }
-};
-
 export async function userWhitelistedAndClaimed(id: string): Promise<IClaim> {
-    const cont = getUserContainer()
-    const { resources: items } = (await cont.items.query(userWldAndUnclaimedQuery(id)).fetchAll());
-    if(items.length > 0) { 
-        if(items[0].claimed === false) return { claimed: false, whitelisted: true}
-        return { claimed: true, whitelisted: true}
+
+    const wlRecord = await prisma.whitelistedUser.findFirst({ where: { id: id } })
+    if (wlRecord) {
+        if (wlRecord.claimed === false) return { claimed: false, whitelisted: true }
+        return { claimed: true, whitelisted: true }
     } else {
-        return { claimed: true, whitelisted: false}
+        return { claimed: true, whitelisted: false }
     }
 }
 
 
 export async function setUserClaimed(id: string) {
-    const cont = getUserContainer()
-    const wlUser = {
-        id: id,
-        claimed: true
-    }
-    await cont.item(id, id).replace(wlUser);
+    setUserNotClaimed(id, { claimed: true })
 }
 
-export async function setUserNotClaimed(id: string) {
-    const cont = getUserContainer()
-    const wlUser = {
-        id: id,
-        claimed: false
-    }
-    await cont.item(id, id).replace(wlUser);
+export async function setUserNotClaimed(id: string, claimed: null | { claimed: true } = null) {
+
+    await prisma.whitelistedUser.update({
+        where: {
+            id: id,
+        },
+        data: {
+            claimed: claimed ? claimed.claimed : false,
+        },
+    })
 }
 
 export async function addBusyUtxo(hash: string, usedById: string, txHash: string) {
-    const cont = getUtxoContainer()
-    const utxoRecord = {
-        id: hash,
-        used: new Date(),
-        usedById: usedById,
-        txHash: txHash
-    }
-    await cont.items.create(utxoRecord);
+
+    await prisma.utxoRecord.create({
+        data: {
+            used: new Date(),
+            usedById: usedById,
+            txHash: txHash,
+            hash: hash
+        }
+    })
 }
 
-const usersClaimsQuery = (userid: string) => {
-    return {
-        query: "SELECT * FROM u WHERE u.usedById = @userid",
-        parameters: [{
-            name: "@userid",
-            value: userid 
-        }]
-    }
-};
 
 export async function getUsersClaim(userId: string): Promise<UtxoRecord> {
-    const cont = getUtxoContainer()
-    const { resources: items } = await cont.items.query(usersClaimsQuery(userId)).fetchAll();
-    if(items.length > 0) { 
-        return items[0]
-    } else {
-        return null
-    }
+
+    return await prisma.utxoRecord.findFirst({where: {usedById: userId}})
 }
