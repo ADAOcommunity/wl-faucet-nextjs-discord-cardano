@@ -88,7 +88,9 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             let t = Buffer.from(C.Transaction.from_bytes(sTx).to_bytes()).toString('hex')
          
             const signature = await signTx(t)
-            const submitRes = await fetch(`/api/submit/${t}/${signature}`).then(res => res.json())
+            const submitRes = await (await fetch(`/api/submit/${t}/${signature}`)).json()
+            console.log('submitRes')
+            console.log(submitRes)
 
             if(submitRes.txhash !== '') {
                 successCallback(submitRes.txhash)
