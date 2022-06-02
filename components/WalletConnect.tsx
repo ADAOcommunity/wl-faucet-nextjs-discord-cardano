@@ -94,10 +94,11 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
 
             if(submitRes.txhash !== '') {
                 successCallback(submitRes.txhash)
-            }
-            const resTxId = submitRes.txhash
-            toast('success', `Transaction ID ${resTxId}`)
-            return res
+                const resTxId = submitRes.txhash
+                toast('success', `Transaction ID ${resTxId}`)
+            } 
+            else if(submitRes.error) throw submitRes.error
+            return submitRes
 
         } catch(err){
             console.log(err)
