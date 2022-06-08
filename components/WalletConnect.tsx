@@ -88,13 +88,13 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             let t = Buffer.from(C.Transaction.from_bytes(sTx).to_bytes()).toString('hex')
          
             const signature = await signTx(t)
-            const submitRes = await (await fetch(`/api/submit/${t}/${signature}`)).json()
+            const submitRes = await submitReq(t, signature)
             console.log('submitRes')
             console.log(submitRes)
 
-            if(submitRes.txhash !== '') {
-                successCallback(submitRes.txhash)
-                const resTxId = submitRes.txhash
+            if(submitRes.transactionId !== '') {
+                successCallback(submitRes.transactionId)
+                const resTxId = submitRes.transactionId
                 toast('success', `Transaction ID ${resTxId}`)
             } 
             else if(submitRes.error) throw submitRes.error
@@ -106,6 +106,20 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         }
         toast('error', "Transaction Cancelled")
         setLoading(false)
+    }
+
+    const submitReq = async (txHex: string, signatureHex: string) => {
+        const rawResponse = await fetch(`http://localhost:8080/submit`, {
+            // const rawResponse = await fetch(`http://localhost:8080/submit/${sig}`, {
+            method: 'POST',
+            headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({txHex: txHex, signatureHex: signatureHex})
+        });
+        console.log(rawResponse)
+        return await rawResponse.json()
     }
 
     const signTx = async (txCbor: string) => {

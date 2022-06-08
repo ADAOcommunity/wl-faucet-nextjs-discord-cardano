@@ -13,7 +13,7 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
   const searchAddress = process.env.WALLET_ADDRESS
   const wallet = new CardanoWalletBackend(blockfrostApiKey);
   
-  const beUtxos = await wallet.getAddressUtxos(searchAddress)
-    console.log(beUtxos)
+  const beUtxos = await wallet.getAddressUtxos(searchAddress, 0)
+  console.log(beUtxos)
   res.status(200).json(beUtxos);
 }
