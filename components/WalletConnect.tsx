@@ -1,16 +1,11 @@
-import React, { useState, useContext, Fragment } from 'react'
-import CardanoWallet from "../cardano/cardano-wallet"
-import loader from '../cardano/cardano-wallet/loader'
+import React, { useState } from 'react'
 import { Buffer } from 'buffer'
 import WalletDropdown from './WalletDropdown'
 import { useToast } from '../hooks/useToast';
 import Checkbox from "../components/Checkbox";
-import { BigNum } from '@emurgo/cardano-serialization-lib-browser'
-import { Assets, C, Lucid, Tx, UTxO } from 'lucid-cardano'
-import initializeLucid from '../utils/lucid'
+import { Assets, C, Tx, UTxO } from 'lucid-cardano'
+import initializeLucid, { assetsFromJson } from '../utils/lucid'
 
-
-const _Buffer = Buffer
 
 export default function WalletConnect({successCallback} : {successCallback: (txid: any) => void}) {
     const [address, setAddress] = useState('')
@@ -48,25 +43,37 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
 
         const lib = await initializeLucid(walletName)
         const res = await fetch(`/api/utxos/available`).then(res => res.json())
-        if(res?.error) return toast('error', res.error)
+        if(!res) return toast('error', 'Couldnt find available utxos to serve the tokens. Try again later.')
+        else if(res?.error) return toast('error', res.error)
+
         console.log('res')
         console.log(res)
 
         const localAssetCheck = '648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff19877444f4745'
         const serverAddress = "addr_test1vpeer9pltfdzalkk4psyxvc59pwxy9njf0zsk095zkutu8gcwx60f"
-        const serverUtxo: UTxO = {
-            txHash: res.tx_hash,
-            outputIndex: res.output_index,
-            assets: (() => {
-              const a: Assets = {};
-              res.amount.forEach((am: any) => {
-                a[am.unit] = BigInt(am.quantity);
-              });
-              return a;
-            })(),
-            address: serverAddress,
-            datumHash: res.data_hash,
-        }
+        const serverUtxo: UTxO = [res].map(utxo => {
+            return {
+                txHash: utxo.txHash,
+                outputIndex: utxo.outputIndex,
+                assets: utxo.assets ? assetsFromJson(JSON.parse(utxo.assets)) : {},
+                address: utxo.address,
+                datumHash: utxo.datumHash,
+                datum: utxo.datum,
+            }
+        })[0]
+        // const serverUtxo: UTxO = {
+        //     txHash: res.tx_hash,
+        //     outputIndex: res.output_index,
+        //     assets: (() => {
+        //       const a: Assets = {};
+        //       res.amount.forEach((am: any) => {
+        //         a[am.unit] = BigInt(am.quantity);
+        //       });
+        //       return a;
+        //     })(),
+        //     address: serverAddress,
+        //     datumHash: res.data_hash,
+        // }
         let serverUtxoAssetCount: bigint = serverUtxo.assets[localAssetCheck] ? BigInt(serverUtxo.assets[localAssetCheck].toString()) : BigInt(0)
 
         const claimingAssetQt =  BigInt(5)

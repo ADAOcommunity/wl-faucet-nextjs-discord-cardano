@@ -1,36 +1,38 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { Utxo } from '../../../interfaces'
 import { getInUseHashesArray } from '../../../utils/db';
-import { CardanoWalletBackend } from '../../../cardano/cardano-wallet-backend';
 import sample from 'lodash.sample';
-import { Console } from 'console';
-
-const blockfrostApiKey = {
-    0: `testnetRvOtxC8BHnZXiBvdeM9b3mLbi8KQPwzA`, // testnet
-    1: `mainnetGHf1olOJblaj5LD8rcRudajSJGKRU6IL`, // mainnet
-};
+import initializeLucid, { assetsToJsonString } from '../../../utils/lucid';
+import { UTxO } from 'lucid-cardano';
 
 export default async function (req: NextApiRequest, res: NextApiResponse) {
 
-    // console.log(process.env.WALLET_ADDRESS);
-    // const body = req.body
-
     const searchAddress = process.env.WALLET_ADDRESS
-    const wallet = new CardanoWalletBackend(blockfrostApiKey);
-    const addrUtxos: Utxo[] = await wallet.getAddressUtxos(searchAddress, 0)
-    if(!addrUtxos || addrUtxos.length < 1 || !addrUtxos[0].tx_hash) return res.status(200).json('ERROR: No utxos are currently available');
+    const lib = await initializeLucid(null)
+    const addrUtxos: UTxO[] = await lib.provider.getUtxos(searchAddress)
+    if(!addrUtxos || addrUtxos.length < 1 || !addrUtxos[0].txHash) return res.status(200).json('ERROR: No utxos are currently available');
     
-    const busyUtxoHashes: string[] = await getInUseHashesArray(addrUtxos.map(u => `${u.tx_hash}_${u.output_index}`))
+    const busyUtxoHashes: string[] = await getInUseHashesArray(addrUtxos.map(u => `${u.txHash}_${u.outputIndex}`))
     let availableUtxos
     if(!busyUtxoHashes || busyUtxoHashes.length < 1) {
         availableUtxos = addrUtxos
     } else {
-        availableUtxos = addrUtxos.filter(utxo => !busyUtxoHashes.includes(`${utxo.tx_hash}_${utxo.output_index}`))
+        availableUtxos = addrUtxos.filter(utxo => !busyUtxoHashes.includes(`${utxo.txHash}_${utxo.outputIndex}`))
     }
     if(availableUtxos.length > 0){
-        const chooseRandom = sample(availableUtxos)
-        return res.status(200).json(chooseRandom);
+        const rndUtxo: UTxO = sample(availableUtxos)
+        let resUtxo = {}
+        if(rndUtxo) resUtxo = [rndUtxo].map(utxo => {
+            return {
+                txHash: utxo.txHash,
+                outputIndex: utxo.outputIndex,
+                assets: assetsToJsonString(utxo.assets),
+                address: utxo.address,
+                datumHash: utxo.datumHash,
+                datum: utxo.datum,
+            }
+        })[0]
+        return res.status(200).json(resUtxo)
     } else {
-        return res.status(200).json({error: "No utxos are currently available"});
+        return res.status(200).json({error: "No utxos are currently available"})
     }
 }

@@ -2,11 +2,11 @@ FROM node:lts-buster-slim AS base
 RUN apt-get update && apt-get install libssl-dev ca-certificates -y
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json ./
 
 FROM base as build
 RUN export NODE_ENV=production
-RUN npm ci
+RUN npm install
 
 COPY . .
 RUN npx prisma generate
