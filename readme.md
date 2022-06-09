@@ -1,15 +1,10 @@
-# `next-discord-oauth`
+# `wl-faucet-nextjs-discord-cardano`
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Falii%2Fnextjs-discord-oauth)
-
-### A simple guide & easy-to-use template to deploy Next.js with Discord OAuth to Vercel
+### A simple guide & easy-to-use template to deploy Next.js with Discord OAuth
 
 ## Setting up
 
 1. Ensure you have `git`, `yarn`, `npm` & `node` installed
-2. If you do not already have Vercel CLI, run `yarn global add vercel` (or, if using `npm`, you can run `npm i -g vercel`).
-3. If you are not already logged in, run `vercel login` and finish that process.
-4. Finally, fork this project and clone it with `git clone <github url of fork>`
 
 ## Discord Credentials
 
@@ -25,17 +20,23 @@
    2. If you want to rid of the error messages, you can add `JWT_SECRET` (which can be anything in **development** – this does matter in production, however) & `APP_URI` (which in most occasions should be `http://localhost:3000` unless you know what you are doing).
 5. You will now want to head over to the Discord developer dashboard again, select "OAuth2" in the sidebar, and add `http://localhost:3000/api/oauth` as a redirect URI.
 
-## Production Environment
+## Production Environment variables
 
-1. Next up, head to [vercel.com](https://vercel.com/) and hit "Import Project"
-2. Select "Import Git Repository"
-3. Enter the URL of your fork, and hit continue
-   1. We now need to set up your `.env` file, but on the production vercel deployment side.
-4. When it loads, click on "Environment Variables" and one by one, add `CLIENT_ID`, `CLIENT_SECRET`, etc...
-5. It's crucial here that you add `JWT_SECRET` & `APP_URI` as these are the variables that the Discord OAuth will use to sign your jwt token and handle the Discord redirection
-   i. `APP_URI` will look like `https://my-app.vercel.app` (including the protocol)
+1. Add `CLIENT_ID`, `CLIENT_SECRET`, etc...
+2. It's crucial that you add `JWT_SECRET` & `APP_URI` as these are the variables that the Discord OAuth will use to sign your jwt token and handle the Discord redirection
+   i. `APP_URI` will look like `https://my-app.domain.app` (including the protocol)
    ii. `JWT_SECRET` should be a long string of cryptographically generated characters. The more the merrier. [passwordsgenerator.net](https://passwordsgenerator.net/) is a great start.
-6. After this, you can hit deploy and watch your app build to production! Congrats.
-7. Finally, open discord developer dashboard and add another redirect URI which is your `APP_URI` with `/api/oauth` added to the end.
+3. After this, you can deploy your app build to production! Congrats.
+4. Finally, open discord developer dashboard and add another redirect URI which is your `APP_URI` with `/api/oauth` added to the end.
 
-#### Profit
+#### To use with Docker
+
+1. Build
+```
+docker-compose build
+```
+
+2. Run
+```
+docker-compose up
+```
