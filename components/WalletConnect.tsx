@@ -52,19 +52,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
                 datum: utxo.datum,
             }
         })[0]
-        // const serverUtxo: UTxO = {
-        //     txHash: res.tx_hash,
-        //     outputIndex: res.output_index,
-        //     assets: (() => {
-        //       const a: Assets = {};
-        //       res.amount.forEach((am: any) => {
-        //         a[am.unit] = BigInt(am.quantity);
-        //       });
-        //       return a;
-        //     })(),
-        //     address: serverAddress,
-        //     datumHash: res.data_hash,
-        // }
+
         let serverUtxoAssetCount: bigint = serverUtxo.assets[localAssetCheck] ? BigInt(serverUtxo.assets[localAssetCheck].toString()) : BigInt(0)
 
         const claimingAssetQt =  BigInt(5)
@@ -88,26 +76,30 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             const submitRes = await submitReq(t, signature)
             console.log('submitRes')
             console.log(submitRes)
+            
+            if(submitRes.error) {
+                throw submitRes.error
+            }
 
-            if(submitRes.transactionId !== '') {
+            else if(submitRes.transactionId !== '') {
                 successCallback(submitRes.transactionId)
                 const resTxId = submitRes.transactionId
                 toast('success', `Transaction ID ${resTxId}`)
             } 
-            else if(submitRes.error) throw submitRes.error
             return submitRes
-
         } catch(err){
             console.log(err)
-            toast('error', err.toString())
+            toast('error', 
+                typeof err === 'object' && err !== null ?
+                    JSON.stringify(err) : err ?
+                        err : "Couldn\'t submit right now, please try again later."
+            )
         }
-        toast('error', "Transaction Cancelled")
         setLoading(false)
     }
 
     const submitReq = async (txHex: string, signatureHex: string) => {
         const rawResponse = await fetch(`/api/submit`, {
-            // const rawResponse = await fetch(`http://localhost:8080/submit/${sig}`, {
             method: 'POST',
             headers: {
             'Accept': 'application/json',

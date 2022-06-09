@@ -35,7 +35,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     const claim = await userWhitelistedAndClaimed(userCookie.id)
     if (claim.whitelisted && !claim.claimed) toClaim = true
   } catch (err) {
-    return res.status(200).json({ error: err });
+    return res.status(200).json({ error: err })
   }
   if (!toClaim) return res.status(200).json({ error: 'Nothing to claim' })
 
@@ -47,7 +47,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 
   const isValid = validateTx(txInputsFinal, recipientsFinal)
   if (!isValid) {
-    return res.status(200).json({ error: "Transaction invalid" });
+    return res.status(200).json({ error: "Transaction invalid" })
   }
   ///check inputs-outputs
   const inFromUs = txInputsFinal.filter(input => input.address == beWalletAddr)
@@ -56,17 +56,17 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(200).json({ error: "Transaction invalid" })
   }
 
-  const transaction = C.Transaction.from_bytes(Buffer.from(transactionHex, 'hex'));
+  const transaction = C.Transaction.from_bytes(Buffer.from(transactionHex, 'hex'))
 
-  const signatureSet = C.TransactionWitnessSet.from_bytes(Buffer.from(signatureHex, 'hex'));
+  const signatureSet = C.TransactionWitnessSet.from_bytes(Buffer.from(signatureHex, 'hex'))
   const signatureList = signatureSet.vkeys()
 
   if (!signatureList) return res.status(200).json({ error: "Signature invalid" })
   console.log("We've made it this far.")
 
-  const transaction_body = transaction.body();
+  const transaction_body = transaction.body()
 
-  const txBodyHash = C.hash_transaction(transaction_body);
+  const txBodyHash = C.hash_transaction(transaction_body)
 
   // let serverKey = process.env.SERVER_PRIVATE_KEY
   const serverKey = "2890e93efbb5599e9298286c777b0ab40225ecc52bcf190d4c30936ca8c03b4ba317159212a2f7092797d18ecd51205371c74120d096cab2a886df15c6f5e04f";
@@ -91,16 +91,19 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     resS = await lib.provider.submitTx(signedTx)
   }
   catch(exc){
-    return res.status(200).json({ error: exc });
+    const errMsg = exc.info || exc.message || exc || ''
+    return res.status(200).json({ error: errMsg })
   }
 
   // //if response looks like txHash, set used utxo as locked, set user as claimed
-  if (resS.toString().length !== 64) {
-    return res.status(200).json({ error: resS });
+  if (!resS || resS.toString().length !== 64) {
+    console.log('Submit res:')
+    console.log(resS)
+    return res.status(200).json({ error: resS })
   } else {
     await addBusyUtxo(ourUTXOHashes[0], userCookie.id, resS.toString())
     await setUserClaimed(userCookie.id)
-    return res.status(200).json({ txhash: resS.toString()});
+    return res.status(200).json({ txhash: resS.toString()})
   }
 };
 
@@ -120,12 +123,12 @@ const validateTx = (txInputsFinal, recipientsFinal) => {
           valueIn += r.assets.amount
         }
       }
-      valueIn += r.amount;
+      valueIn += r.amount
     }
   }
   for (let r of recipientsFinal) {
     if (r.address = beWalletAddr) {
-      valueOut += r.amount;
+      valueOut += r.amount
     }
   }
   return (valueIn - valueOut) < 741
