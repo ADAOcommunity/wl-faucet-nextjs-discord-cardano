@@ -1,4 +1,3 @@
-import fetch from "node-fetch";
 import { serialize } from "cookie";
 import { config } from "../../utils/config";
 import { sign } from "jsonwebtoken";
