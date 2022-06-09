@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-
-import initializeLucid, { assetsToJsonString } from '../../../utils/lucid';
+import { assetsToJsonString } from '../../../utils/cardano';
+import initializeLucid from '../../../utils/lucid';
 
 export default async function (req: NextApiRequest, res: NextApiResponse) {
   const searchAddress = process.env.WALLET_ADDRESS

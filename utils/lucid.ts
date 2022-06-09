@@ -1,4 +1,4 @@
-import { Blockfrost, WalletProvider, Lucid, Assets } from 'lucid-cardano'
+import { Blockfrost, WalletProvider, Lucid, Assets, C } from 'lucid-cardano'
 
 const initializeLucid = async (walletName: string = null) => {
     await Lucid.initialize(
@@ -10,21 +10,3 @@ const initializeLucid = async (walletName: string = null) => {
 }
 
 export default initializeLucid
-
-const assetsToJsonString = (assets: Assets) => {
-    const assetsObj = {}
-    Object.keys(assets).forEach(
-        unit => assetsObj[unit] = assets[unit].toString()
-    )
-    return JSON.stringify(assetsObj)
-}
-
-const assetsFromJson = (assets: { [unit: string]: string }) => {
-    const assetsObj = {}
-    Object.keys(assets).forEach(
-        unit => assetsObj[unit] = BigInt(assets[unit])
-    )
-    return assetsObj
-}
-
-export { assetsToJsonString, assetsFromJson }

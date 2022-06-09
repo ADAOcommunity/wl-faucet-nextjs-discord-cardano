@@ -3,8 +3,9 @@ import { Buffer } from 'buffer'
 import WalletDropdown from './WalletDropdown'
 import { useToast } from '../hooks/useToast';
 import Checkbox from "../components/Checkbox";
-import { Assets, C, Tx, UTxO } from 'lucid-cardano'
-import initializeLucid, { assetsFromJson } from '../utils/lucid'
+import { C, Tx, UTxO } from 'lucid-cardano'
+import initializeLucid from '../utils/lucid'
+import { assetsFromJson } from '../utils/cardano'
 
 
 export default function WalletConnect({successCallback} : {successCallback: (txid: any) => void}) {
@@ -14,8 +15,6 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState(true)
     const toast = useToast(3000);
-
-    // const walletCtx = useContext(WalletContext)
 
     const setAddressBech32 = async (wallet: string) => {
         if(wallet) {
@@ -35,19 +34,11 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
 
     const makeTx = async () => {
         setLoading(true)
-        // const loaded = typeof loader !== 'undefined'
-
-        // if(!loaded) {
-        //     await loader.load()
-        // }
 
         const lib = await initializeLucid(walletName)
         const res = await fetch(`/api/utxos/available`).then(res => res.json())
         if(!res) return toast('error', 'Couldnt find available utxos to serve the tokens. Try again later.')
         else if(res?.error) return toast('error', res.error)
-
-        console.log('res')
-        console.log(res)
 
         const localAssetCheck = '648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff19877444f4745'
         const serverAddress = "addr_test1vpeer9pltfdzalkk4psyxvc59pwxy9njf0zsk095zkutu8gcwx60f"
@@ -83,7 +74,6 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         const userAddr = await lib.wallet.address();
 
         try {
-
             const tx = await Tx.new()
                 .addSigner(userAddr)
                 .addSigner(serverAddress)
@@ -116,7 +106,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
     }
 
     const submitReq = async (txHex: string, signatureHex: string) => {
-        const rawResponse = await fetch(`http://localhost:8080/submit`, {
+        const rawResponse = await fetch(`/api/submit`, {
             // const rawResponse = await fetch(`http://localhost:8080/submit/${sig}`, {
             method: 'POST',
             headers: {

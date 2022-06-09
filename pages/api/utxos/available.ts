@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getInUseHashesArray } from '../../../utils/db';
 import sample from 'lodash.sample';
-import initializeLucid, { assetsToJsonString } from '../../../utils/lucid';
+import { assetsToJsonString } from '../../../utils/cardano';
+import initializeLucid from '../../../utils/lucid';
 import { UTxO } from 'lucid-cardano';
 
 export default async function (req: NextApiRequest, res: NextApiResponse) {
