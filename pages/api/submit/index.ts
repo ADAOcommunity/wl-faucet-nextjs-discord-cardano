@@ -80,23 +80,28 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 
   signatureList.add(witness);
   signatureSet.set_vkeys(signatureList);
-  signatureSet.set_native_scripts(transaction.witness_set().native_scripts())
+  if(transaction.witness_set()?.native_scripts()) signatureSet.set_native_scripts(transaction.witness_set().native_scripts())
   
-  const aux = C.AuxiliaryData.new()
-  aux.set_metadata(transaction.auxiliary_data().metadata())
+  let aux = C.AuxiliaryData.new()
+  if(transaction.auxiliary_data()) aux = transaction.auxiliary_data()
   const signedTx = C.Transaction.new(transaction.body(), signatureSet, aux)
   const lib = await initializeLucid(null)
-  const resF = await lib.provider.submitTx(signedTx)
-
-  // //if response looks like txHash, set used utxo as locked, set user as claimed
-  if (resF.toString().length !== 64) {
-    return res.status(200).json({ error: resF });
-  } else {
-    await addBusyUtxo(ourUTXOHashes[0], userCookie.id, resF.toString())
-    await setUserClaimed(userCookie.id)
-    return res.status(200).json({ txhash: resF.toString()});
+  let resS = null
+  try {
+    resS = await lib.provider.submitTx(signedTx)
+  }
+  catch(exc){
+    return res.status(200).json({ error: exc });
   }
 
+  // //if response looks like txHash, set used utxo as locked, set user as claimed
+  if (resS.toString().length !== 64) {
+    return res.status(200).json({ error: resS });
+  } else {
+    await addBusyUtxo(ourUTXOHashes[0], userCookie.id, resS.toString())
+    await setUserClaimed(userCookie.id)
+    return res.status(200).json({ txhash: resS.toString()});
+  }
 };
 
 const validateTx = (txInputsFinal, recipientsFinal) => {
