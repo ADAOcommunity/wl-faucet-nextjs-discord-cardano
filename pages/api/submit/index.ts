@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import Bottleneck from 'bottleneck';
 import { verify } from 'jsonwebtoken'
 
 import { addBusyUtxo, setUserClaimed, userWhitelistedAndClaimed } from "../../../utils/db";
@@ -8,6 +9,10 @@ import { C } from "lucid-cardano";
 
 const beWalletAddr = process.env.WALLET_ADDRESS
 
+const limiter = new Bottleneck({
+  maxConcurrent: 1
+})
+
 type SubmitReqBody = {
   txHex: string
   signatureHex: string
@@ -16,7 +21,7 @@ type SubmitReqBody = {
 export default async (req: NextApiRequest, res: NextApiResponse) => {
   const submitReqBody: SubmitReqBody = req.body
   console.log(req.body)
-  if (!submitReqBody || !submitReqBody.txHex || !submitReqBody.signatureHex) return res.status(400).json({ error: `signed Tx not provided`})
+  if (!submitReqBody || !submitReqBody.txHex || !submitReqBody.signatureHex) return res.status(400).json({ error: `correct request body not provided` })
 
   if (!req.cookies.token) {
     return res.status(200).json({ error: 'User needs to be authenticated' })
@@ -25,35 +30,61 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     userCookie = verify(req.cookies.token, process.env.JWT_SECRET)
   } catch (e) {
-    return res.status(400).json({ error: 'Token not valid'})
+    return res.status(400).json({ error: 'Token not valid' })
   }
   if (!userCookie || !userCookie.id || userCookie.id.length !== 18) {
     return res.status(200).json({ error: 'User needs to be authenticated' })
   }
-  let toClaim = false
-  try {
-    const claim = await userWhitelistedAndClaimed(userCookie.id)
-    if (claim.whitelisted && !claim.claimed) toClaim = true
-  } catch (err) {
-    return res.status(200).json({ error: err })
-  }
-  if (!toClaim) return res.status(200).json({ error: 'Nothing to claim' })
 
   const transactionHex = submitReqBody.txHex.toString()
+
   const signatureHex = submitReqBody.signatureHex.toString()
 
+  return res.status(200).json(
+    await limiter.schedule(() => submitJob(userCookie.id, transactionHex, signatureHex))
+  )
+}
+
+const submitJob = async (userCookieId: string, transactionHex: string, signatureHex: string) => {
+  let toClaim = false
+  try {
+    const claim = await userWhitelistedAndClaimed(userCookieId)
+    if (claim.whitelisted && !claim.claimed) toClaim = true
+  } catch (err) {
+    return { error: err }
+  }
+  if (!toClaim) return { error: 'Nothing to claim' }
 
   let { txInputsFinal, recipientsFinal, metadata, fee } = await decodeTransaction(transactionHex);
 
-  const isValid = validateTx(txInputsFinal, recipientsFinal)
+  console.log('{ txInputsFinal, recipientsFinal}')
+  console.log({ 
+    txInputsFinal: txInputsFinal.map(i => {
+      return {
+        assets: JSON.stringify(i.assets),
+        utxoHashes: i.utxoHashes,
+        amount: i.amount,
+        address: i.address
+      }
+    }),
+    recipientsFinal: recipientsFinal.map(r => {
+      return {
+        assets: JSON.stringify(r.assets),
+        amount: r.amount,
+        address: r.address
+      }
+    })
+  })
+
+  const isValid = validateTx(transactionHex)
   if (!isValid) {
-    return res.status(200).json({ error: "Transaction invalid" })
+    return { error: "Transaction invalid" }
   }
   ///check inputs-outputs
   const inFromUs = txInputsFinal.filter(input => input.address == beWalletAddr)
   const ourUTXOHashes = inFromUs.map(inp => inp.utxoHashes?.split(',').filter(s => s.length > 2))?.reduce((prev, curr) => prev.concat(curr))
   if (ourUTXOHashes.length != 1 || inFromUs[0].amount > 1999999) {
-    return res.status(200).json({ error: "Transaction invalid" })
+    return { error: "Transaction invalid" }
   }
 
   const transaction = C.Transaction.from_bytes(Buffer.from(transactionHex, 'hex'))
@@ -61,7 +92,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
   const signatureSet = C.TransactionWitnessSet.from_bytes(Buffer.from(signatureHex, 'hex'))
   const signatureList = signatureSet.vkeys()
 
-  if (!signatureList) return res.status(200).json({ error: "Signature invalid" })
+  if (!signatureList) return { error: "Signature invalid" }
   console.log("We've made it this far.")
 
   const transaction_body = transaction.body()
@@ -80,56 +111,79 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 
   signatureList.add(witness);
   signatureSet.set_vkeys(signatureList);
-  if(transaction.witness_set()?.native_scripts()) signatureSet.set_native_scripts(transaction.witness_set().native_scripts())
-  
+  if (transaction.witness_set()?.native_scripts()) signatureSet.set_native_scripts(transaction.witness_set().native_scripts())
+
   let aux = C.AuxiliaryData.new()
-  if(transaction.auxiliary_data()) aux = transaction.auxiliary_data()
+  if (transaction.auxiliary_data()) aux = transaction.auxiliary_data()
   const signedTx = C.Transaction.new(transaction.body(), signatureSet, aux)
   const lib = await initializeLucid(null)
   let resS = null
   try {
     resS = await lib.provider.submitTx(signedTx)
   }
-  catch(exc){
+  catch (exc) {
     const errMsg = exc.info || exc.message || exc || ''
-    return res.status(200).json({ error: errMsg })
+    return { error: errMsg }
   }
 
   // //if response looks like txHash, set used utxo as locked, set user as claimed
   if (!resS || resS.toString().length !== 64) {
     console.log('Submit res:')
     console.log(resS)
-    return res.status(200).json({ error: resS })
+    return { error: resS }
   } else {
-    await addBusyUtxo(ourUTXOHashes[0], userCookie.id, resS.toString())
-    await setUserClaimed(userCookie.id)
-    return res.status(200).json({ txhash: resS.toString()})
+    await addBusyUtxo(ourUTXOHashes[0], userCookieId, resS.toString())
+    await setUserClaimed(userCookieId)
+    return { txhash: resS.toString() }
   }
-};
+}
 
-const validateTx = (txInputsFinal, recipientsFinal) => {
-  let valueIn = 0
-  let valueOut = 0
-  for (let r of txInputsFinal) {
-    if (r.address == beWalletAddr) {
-      if(Array.isArray(r.assets)) {
-        for (let a of r.assets) {
-          if (a.unit == "648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE") {
-            valueIn += a.amount
-          }
-        }
-      } else {
-        if (r.assets.unit == "648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE") {
-          valueIn += r.assets.amount
-        }
+const validateTx = async (transactionHex: string) => {
+
+  let { txInputsFinal, recipientsFinal, metadata, fee } = await decodeTransaction(transactionHex);
+
+  console.log('{ txInputsFinal, recipientsFinal}')
+  console.log({ 
+    txInputsFinal: txInputsFinal.map(i => {
+      return {
+        assets: JSON.stringify(i.assets),
+        utxoHashes: i.utxoHashes,
+        amount: i.amount,
+        address: i.address
       }
-      valueIn += r.amount
+    }),
+    recipientsFinal: recipientsFinal.map(r => {
+      return {
+        assets: JSON.stringify(r.assets),
+        amount: r.amount,
+        address: r.address
+      }
+    })
+  })
+
+  const unitToCheck = '648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE'
+  let valueInLovelace = 0
+  let valueInToken = 0
+  let valueOutLovelace = 0
+  let valueOutToken = 0
+
+  for (let i of txInputsFinal) {
+    if (i.address == beWalletAddr) {
+      if (i.assets[unitToCheck]) {
+        valueInToken += i.assets[unitToCheck]
+      }
+      valueInLovelace += i.amount
     }
   }
   for (let r of recipientsFinal) {
     if (r.address = beWalletAddr) {
-      valueOut += r.amount
+      if (r.assets[unitToCheck]) {
+        valueOutToken += r.assets[unitToCheck]
+      }
+      valueOutLovelace += r.amount
     }
   }
-  return (valueIn - valueOut) < 741
+  return (
+    (valueInLovelace - valueOutLovelace) < (1 * 1000000) && (valueInToken - valueOutToken) < 5
+  )
 }
