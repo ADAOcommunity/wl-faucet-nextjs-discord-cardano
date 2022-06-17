@@ -1,12 +1,8 @@
-import { decode, verify } from 'jsonwebtoken';
+import { verify } from 'jsonwebtoken';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { ClaimRes, IClaim, UtxoRecord } from '../../../interfaces';
-import { getUsersClaim, setUserNotClaimed } from '../../../utils/db';
-import { CardanoWalletBackend } from '../../../cardano/cardano-wallet-backend';
-const blockfrostApiKey = {
-  0: `testnetRvOtxC8BHnZXiBvdeM9b3mLbi8KQPwzA`, // testnet
-  1: `mainnetGHf1olOJblaj5LD8rcRudajSJGKRU6IL`, // mainnet
-};
+import { ClaimRes, UtxoRecord } from '../../../interfaces';
+import { getUsersClaim } from '../../../utils/db';
+import bf from '../../../utils/blockfrost'
 
 export default async function (req: NextApiRequest, res: NextApiResponse) {
     let claimRes: ClaimRes
@@ -37,22 +33,16 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
         var dt = new Date()
         dt.setHours( dt.getHours() - 5);
         if(dt.getTime() > new Date(record.used).getTime()) {
-            const wallet = new CardanoWalletBackend(blockfrostApiKey);
-            let tx = await wallet._blockfrostRequest({
+            
+            let tx = await bf({
                 endpoint: `/txs/${record.txHash}`,
-                networkId: 0,
-                // networkId: 1,
-                method: 'GET',
-            });
+                method: 'GET'
+            })
             if(tx && tx.hash) {
                 claimRes = { claim: {claimed: true, whitelisted: true}, error: `Your claiming transaction ${record.txHash} was already included in the blockchain.` }
                 return res.status(200).json(claimRes);
             }
             else{
-                //delete UTXO record
-
-                //set claimed user false
-                // setUserNotClaimed(userCookie.id)
                 claimRes = { claim: {claimed: true, whitelisted: true}, error: `It seems like tx didn't go through. Please reach out to us on our discord.` }
                 return res.status(200).json(claimRes);
             }

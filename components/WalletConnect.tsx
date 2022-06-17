@@ -1,37 +1,28 @@
-import React, { useState, useContext, Fragment } from 'react'
-import CardanoWallet from "../cardano/cardano-wallet"
-import loader from '../cardano/cardano-wallet/loader'
+import React, { useState } from 'react'
 import { Buffer } from 'buffer'
 import WalletDropdown from './WalletDropdown'
 import { useToast } from '../hooks/useToast';
 import Checkbox from "../components/Checkbox";
-import { BigNum } from '@emurgo/cardano-serialization-lib-browser'
+import { C, Tx, UTxO } from 'lucid-cardano'
+import initializeLucid from '../utils/lucid'
+import { assetsFromJson } from '../utils/cardano'
 
-let wallet
-const _Buffer = Buffer
 
 export default function WalletConnect({successCallback} : {successCallback: (txid: any) => void}) {
     const [address, setAddress] = useState('')
     const [connected, setConnected] = useState(false)
-    const [walletState, setWalletState] = useState()
+    const [walletName, setWalletName] = useState('')
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState(true)
     const toast = useToast(3000);
 
-    // const walletCtx = useContext(WalletContext)
-
-    const setAddressBech32 = async (walletApi) => {
-        if(walletApi) {
-            await loader.load()
-            const loaded = typeof loader !== 'undefined'
-            console.log("loader")
-            console.log(loaded)
-            if(loaded) {
-                const loadedLoader = loader
-                const address = (await walletApi.getUsedAddresses())[0]
-                const addReadable = loadedLoader.Cardano.Address.from_bytes(_Buffer.from(address, 'hex')).to_bech32()
-                console.log(addReadable)
-                setAddress(addReadable)
+    const setAddressBech32 = async (wallet: string) => {
+        if(wallet) {
+            let lib = await initializeLucid(wallet)
+            console.log(wallet)
+            const addr = await lib.wallet.address()
+            if(addr) {
+                setAddress(addr)
             }
         }
     }
@@ -43,87 +34,89 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
 
     const makeTx = async () => {
         setLoading(true)
-        let blockfrostApiKey = {
-            0: "testneto48QlLzZUqe1bLNas393LNKOAzAsJNOE", // testnet
-            1: "mainnetlBYozUOJH7r3Lm0p7qarAwvxQRTWZSRY" // mainnet
-            }
-        
-        const loaded = typeof loader !== 'undefined'
 
-        if(!loaded) {
-            await loader.load()
-        }
-        const S = loader.Cardano
-        wallet = new CardanoWallet(
-                        S,
-                        walletState,
-                        blockfrostApiKey
-                    )
-        let utxos = await wallet.getUtxosHex();
-        console.log(utxos)
-        const res = await fetch(`/api/utxos/available`).then(res => res.text())
-        if(res.includes('ERROR')) return toast('error', res)
-        console.log('res')
-        console.log(res)
-        utxos = utxos.concat(res)
-        const myAddress = await wallet.getAddress();
-        const netId = await wallet.getNetworkId();
+        const lib = await initializeLucid(walletName)
+        const res = await fetch(`/api/utxos/available`).then(res => res.json())
+        if(!res) return toast('error', 'Couldnt find available utxos to serve the tokens. Try again later.')
+        else if(res?.error) return toast('error', res.error)
 
-        let data =  (await wallet.getBalance()).assets
         const localAssetCheck = '648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff19877444f4745'
-        const checkUserAssets = data.filter(input => input.unit == localAssetCheck)
-        const quantityUser = checkUserAssets.length > 0 ? checkUserAssets[0].quantity : 0
-        const parseAmount = parseInt(quantityUser) + 5
-        const claimAmount = parseAmount.toString()
-        console.log('claimAmount')
-        console.log(claimAmount)
-
-        const serverUtxoMultiasset = S.TransactionUnspentOutput.from_bytes(Buffer.from(res, 'hex')).output().amount().multiasset()
-        const serverUtxoMultiassetQt = unitCountInMultiassets(serverUtxoMultiasset, "648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE" )
-        const giveAmount = (serverUtxoMultiassetQt - 5).toString()
-
-
-        let recipients = [
-            // User Wallet
-            // NFTs to be sent - Calculate all OG tokens in users wallet, sent it to him, plus amount he is claiming
-            {address: `${myAddress}`,  amount: "2.5",
-            assets:[{"unit":"648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE","quantity":claimAmount}] // TODO - The unit needs to not be like this format.
-            },
-
-            // Server Address - Calculate all OG token in server address, sent it back minus what's going to user
-            // NFTs to be sent
-            {address: "addr_test1vpeer9pltfdzalkk4psyxvc59pwxy9njf0zsk095zkutu8gcwx60f", amount: "0",
-            assets:[{"unit":"648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE","quantity":giveAmount}]}
-        ]
-        try {
-            const t = await wallet.transaction({
-                PaymentAddress: myAddress,
-                utxosRaw: utxos,
-                recipients: recipients,
-                addMetadata: false,
-                multiSig: true,
-                networkId: netId.id,
-                ttl: 18000
-            })
-         
-            const signature = await wallet.signTx(t, true)
-            const submitRes = await fetch(`/api/submit/${t}/${signature}`).then(res => res.json())
-
-            if(submitRes.txhash !== '') {
-                successCallback(submitRes.txhash)
+        const serverAddress = "addr_test1vpeer9pltfdzalkk4psyxvc59pwxy9njf0zsk095zkutu8gcwx60f"
+        const serverUtxo: UTxO = [res].map(utxo => {
+            return {
+                txHash: utxo.txHash,
+                outputIndex: utxo.outputIndex,
+                assets: utxo.assets ? assetsFromJson(JSON.parse(utxo.assets)) : {},
+                address: utxo.address,
+                datumHash: utxo.datumHash,
+                datum: utxo.datum,
             }
-            // const res = 'res-temp'
-            // const txhash = await wallet.submitTx({transactionRaw: t, witnesses: [signature], networkId: 1})
-            const resTxId = submitRes.txhash
-            toast('success', `Transaction ID ${resTxId}`)
-            return res
+        })[0]
 
+        let serverUtxoAssetCount: bigint = serverUtxo.assets[localAssetCheck] ? BigInt(serverUtxo.assets[localAssetCheck].toString()) : BigInt(0)
+
+        const claimingAssetQt =  BigInt(5)
+
+        const restAmount = (serverUtxoAssetCount - claimingAssetQt).toString()
+
+        const userAddr = await lib.wallet.address();
+
+        try {
+            const tx = await Tx.new()
+                .addSigner(userAddr)
+                .addSigner(serverAddress)
+                .collectFrom([serverUtxo])
+                .payToAddress(serverAddress, { [localAssetCheck]: BigInt(restAmount), ['lovelace'] : BigInt(1500000)})
+                .complete()
+                
+            let sTx = Buffer.from(tx.txComplete.to_bytes(), 'hex')
+            let t = Buffer.from(C.Transaction.from_bytes(sTx).to_bytes()).toString('hex')
+         
+            const signature = await signTx(t)
+            const submitRes = await submitReq(t, signature)
+            console.log('submitRes')
+            console.log(submitRes)
+            
+            if(submitRes.error) {
+                throw submitRes.error
+            }
+
+            else if(submitRes.transactionId !== '') {
+                successCallback(submitRes.transactionId)
+                const resTxId = submitRes.transactionId
+                toast('success', `Transaction ID ${resTxId}`)
+            } 
+            return submitRes
         } catch(err){
             console.log(err)
-            toast('error', err.toString())
+            toast('error', 
+                typeof err === 'object' && err !== null ?
+                    JSON.stringify(err) : err ?
+                        err : "Couldn\'t submit right now, please try again later."
+            )
         }
-        toast('error', "Transaction Cancelled")
         setLoading(false)
+    }
+
+    const submitReq = async (txHex: string, signatureHex: string) => {
+        const rawResponse = await fetch(`/api/submit`, {
+            method: 'POST',
+            headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({txHex: txHex, signatureHex: signatureHex})
+        });
+        console.log(rawResponse)
+        return await rawResponse.json()
+    }
+
+    const signTx = async (txCbor: string) => {
+        const api = await window.cardano[walletName].enable();
+        console.log("Signing the tx")
+        let witness: any = await api.signTx(txCbor, true);
+        console.log("Witness created")
+        return witness;
     }
 
     const enableCardano = async (wallet = 'nami') => {
@@ -136,8 +129,8 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
           case 'nami':
             baseWalletApi = win.cardano.nami
             break
-          case 'ccvault':
-            baseWalletApi = win.cardano.ccvault
+          case 'eternl':
+            baseWalletApi = win.cardano.eternl
             break
           case 'flint':
             baseWalletApi = win.cardano.flint
@@ -150,7 +143,7 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
           case 'nami':
             fullWalletApi = await baseWalletApi.enable()
             break
-          case 'ccvault':
+          case 'eternl':
             fullWalletApi = await baseWalletApi.enable()
             break
           case 'flint':
@@ -163,11 +156,9 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
         if(!await baseWalletApi.isEnabled()) return
         else {
             console.log(fullWalletApi)
-            wallet = fullWalletApi
-            setWalletState(fullWalletApi)
+            setWalletName(wallet)
             setConnected(true)
-            setAddressBech32(fullWalletApi)
-            
+            setAddressBech32(wallet)
         }
     }
 
@@ -201,27 +192,4 @@ export default function WalletConnect({successCallback} : {successCallback: (txi
             <WalletDropdown enableWallet={enableCardano} address={address}/>
         </div>
     )
-}
-
-const unitCountInMultiassets = (multiAssets, unit) => {
-    let count = 0
-    let multiAssetKeys = multiAssets.keys();
-    for (let assetsKeyIndex of [
-        ...Array(multiAssetKeys.len()).keys(),
-      ]) {
-        let assetsKey = multiAssetKeys.get(assetsKeyIndex);
-        let assets = multiAssets.get(assetsKey);
-        let assetKeys = assets.keys();
-        let policyId = Buffer.from(assetsKey.to_bytes()).toString('hex');
-        for (let assetKeyIndex of [...Array(assetKeys.len()).keys()]) {
-            let asset = assetKeys.get(assetKeyIndex);
-            let assetNum: BigNum = assets.get(asset);
-            let un =
-                policyId +
-                '.' +
-                Buffer.from((Buffer.from(asset.name()).toString('hex')), 'hex').toString('ascii')
-            if (unit === un) count += Number(assetNum.to_str())
-        }
-    }
-    return count
 }

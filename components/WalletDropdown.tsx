@@ -45,9 +45,9 @@ export default function WalletDropdown({enableWallet, address}
                     <button className={`${
                         active ? 'bg-blue-500 text-white' : 'text-gray-900'
                         } group flex rounded-md items-center w-full px-2 py-2 text-sm`} 
-                        onClick={() => enableWallet('ccvault')}
+                        onClick={() => enableWallet('eternl')}
                     >
-                        ccvault
+                        Eternl
                     </button>
                     )}
                 </Menu.Item>
