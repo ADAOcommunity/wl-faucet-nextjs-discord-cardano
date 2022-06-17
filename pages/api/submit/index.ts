@@ -1,11 +1,11 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import Bottleneck from 'bottleneck';
+import { NextApiRequest, NextApiResponse } from "next"
+import Bottleneck from 'bottleneck'
 import { verify } from 'jsonwebtoken'
 
-import { addBusyUtxo, setUserClaimed, userWhitelistedAndClaimed } from "../../../utils/db";
-import { decodeTransaction } from "../../../utils/cardano";
-import initializeLucid from "../../../utils/lucid";
-import { C } from "lucid-cardano";
+import { addBusyUtxo, setUserClaimed, userWhitelistedAndClaimed } from "../../../utils/db"
+import { decodeTx } from "../../../utils/transactionDecode"
+import initializeLucid from "../../../utils/lucid"
+import { Assets, C } from "lucid-cardano"
 
 const beWalletAddr = process.env.WALLET_ADDRESS
 
@@ -55,38 +55,6 @@ const submitJob = async (userCookieId: string, transactionHex: string, signature
   }
   if (!toClaim) return { error: 'Nothing to claim' }
 
-  let { txInputsFinal, recipientsFinal, metadata, fee } = await decodeTransaction(transactionHex);
-
-  console.log('{ txInputsFinal, recipientsFinal}')
-  console.log({ 
-    txInputsFinal: txInputsFinal.map(i => {
-      return {
-        assets: JSON.stringify(i.assets),
-        utxoHashes: i.utxoHashes,
-        amount: i.amount,
-        address: i.address
-      }
-    }),
-    recipientsFinal: recipientsFinal.map(r => {
-      return {
-        assets: JSON.stringify(r.assets),
-        amount: r.amount,
-        address: r.address
-      }
-    })
-  })
-
-  const isValid = validateTx(transactionHex)
-  if (!isValid) {
-    return { error: "Transaction invalid" }
-  }
-  ///check inputs-outputs
-  const inFromUs = txInputsFinal.filter(input => input.address == beWalletAddr)
-  const ourUTXOHashes = inFromUs.map(inp => inp.utxoHashes?.split(',').filter(s => s.length > 2))?.reduce((prev, curr) => prev.concat(curr))
-  if (ourUTXOHashes.length != 1 || inFromUs[0].amount > 1999999) {
-    return { error: "Transaction invalid" }
-  }
-
   const transaction = C.Transaction.from_bytes(Buffer.from(transactionHex, 'hex'))
 
   const signatureSet = C.TransactionWitnessSet.from_bytes(Buffer.from(signatureHex, 'hex'))
@@ -94,6 +62,13 @@ const submitJob = async (userCookieId: string, transactionHex: string, signature
 
   if (!signatureList) return { error: "Signature invalid" }
   console.log("We've made it this far.")
+
+  let { serverAdrrInputValue, otherInputValue, outputValueToServerAddr, outputValueToOtherAddr, serverAdrrInputHashes } = await decodeTx(transaction, beWalletAddr)
+
+  const isValid = await validateTx(serverAdrrInputValue, outputValueToServerAddr, serverAdrrInputHashes)
+  if (!isValid) {
+    return { error: "Transaction invalid" }
+  }
 
   const transaction_body = transaction.body()
 
@@ -132,58 +107,35 @@ const submitJob = async (userCookieId: string, transactionHex: string, signature
     console.log(resS)
     return { error: resS }
   } else {
-    await addBusyUtxo(ourUTXOHashes[0], userCookieId, resS.toString())
+    await addBusyUtxo(serverAdrrInputHashes[0], userCookieId, resS.toString())
     await setUserClaimed(userCookieId)
     return { txhash: resS.toString() }
   }
 }
 
-const validateTx = async (transactionHex: string) => {
+const validateTx: (
+  serverAdrrInputValue: Assets,
+  outputValueToServerAddr: Assets,
+  serverAdrrInputHashes: string[]
+) => Promise<boolean> = async (serverAdrrInputValue: Assets, outputValueToServerAddr: Assets, serverAdrrInputHashes: string[]) => {
+  console.log(serverAdrrInputHashes)
+  if (serverAdrrInputHashes.length !== 1) return false
 
-  let { txInputsFinal, recipientsFinal, metadata, fee } = await decodeTransaction(transactionHex);
+  const serverLovelaceInput = serverAdrrInputValue['lovelace'] ? BigInt(serverAdrrInputValue['lovelace'].toString()) : BigInt(0)
+  const serverLovelaceOutput = outputValueToServerAddr['lovelace'] ? BigInt(outputValueToServerAddr['lovelace'].toString()) : BigInt(0)
 
-  console.log('{ txInputsFinal, recipientsFinal}')
-  console.log({ 
-    txInputsFinal: txInputsFinal.map(i => {
-      return {
-        assets: JSON.stringify(i.assets),
-        utxoHashes: i.utxoHashes,
-        amount: i.amount,
-        address: i.address
-      }
-    }),
-    recipientsFinal: recipientsFinal.map(r => {
-      return {
-        assets: JSON.stringify(r.assets),
-        amount: r.amount,
-        address: r.address
-      }
-    })
-  })
+  const serverLovelaceDiff = serverLovelaceInput - serverLovelaceOutput
 
-  const unitToCheck = '648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198.wDOGE'
-  let valueInLovelace = 0
-  let valueInToken = 0
-  let valueOutLovelace = 0
-  let valueOutToken = 0
+  const unitToCheck = `648823ffdad1610b4162f4dbc87bd47f6f9cf45d772ddef661eff198${Buffer.from('wDOGE', 'ascii').toString('hex')}`
+  const unitToCheckLimit = BigInt(5)
+  const maxLovelace = BigInt(1000000)
 
-  for (let i of txInputsFinal) {
-    if (i.address == beWalletAddr) {
-      if (i.assets[unitToCheck]) {
-        valueInToken += i.assets[unitToCheck]
-      }
-      valueInLovelace += i.amount
-    }
-  }
-  for (let r of recipientsFinal) {
-    if (r.address = beWalletAddr) {
-      if (r.assets[unitToCheck]) {
-        valueOutToken += r.assets[unitToCheck]
-      }
-      valueOutLovelace += r.amount
-    }
-  }
-  return (
-    (valueInLovelace - valueOutLovelace) < (1 * 1000000) && (valueInToken - valueOutToken) < 5
-  )
+  const serverCheckedUnitInput = serverAdrrInputValue[unitToCheck] ? BigInt(serverAdrrInputValue[unitToCheck].toString()) : BigInt(0)
+  const serverCheckedUnitOutput = outputValueToServerAddr[unitToCheck] ? BigInt(outputValueToServerAddr[unitToCheck].toString()) : BigInt(0)
+  const serverCheckedUnitDiff = serverCheckedUnitInput - serverCheckedUnitOutput
+
+  return (serverLovelaceDiff < maxLovelace && serverCheckedUnitDiff <= unitToCheckLimit)
 }
+
+
+
