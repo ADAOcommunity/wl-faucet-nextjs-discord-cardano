@@ -129,10 +129,7 @@ const getFormatedTxInputs = async (inputs: any) => {
             throw 'We could not map the correct input when decoding the transaction.';
         }
     }
-    return txIn.filter(u => {
-        for(let z in u) return true
-        return false
-    })
+    return txIn
 }
 
 export { decodeTx }
