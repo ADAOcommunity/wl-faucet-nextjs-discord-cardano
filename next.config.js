@@ -10,6 +10,7 @@ module.exports = {
   
       return config
     },
+    output: 'standalone',
     env: {
         COSMOS_KEY: '-',
         COSMOS_ENDPOINT: '-',
