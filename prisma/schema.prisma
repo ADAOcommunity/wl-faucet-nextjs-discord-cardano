@@ -6,27 +6,29 @@ generator client {
   binaryTargets = ["native", "linux-musl"]
 }
 
+//datasource db {
+//  provider = "postgresql"
+//  url      = env("DATABASE_URL")
+//}
+
+
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
-
-
-// datasource db {
-//   provider = "sqlite"
-//   url      = "file:./dev.db"
-// }
 
 
 model UtxoRecord {
     id        Int      @id @default(autoincrement())
-    used      DateTime
-    usedById  String
-    hash      String
-    txHash    String
+    used      DateTime    // date utxo submitted
+    usedById  String      // eligible public address this utxo fulfils the claim for
+    hash      String      // hash
+    txHash    String      // tx submission hash
+    claimant  String      // address of wallet that is claiming for whitelisted addr
 }
 
 model WhitelistedUser {
     id        String      @id @unique
+    quantity  Int
     claimed   Boolean
 }
